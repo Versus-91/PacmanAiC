@@ -21,6 +21,7 @@ matplotlib.use('Agg')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
 BATCH_SIZE = 128
+TARGET_UPDATE = 60  # here
 K_FRAME = 2
 def optimization(it, r): return it % K_FRAME == 0 and r
 
@@ -125,8 +126,8 @@ class LearningAgent:
     def select_action(self, state):
         sample = random.random()
         eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
-            math.exp(-1. * self.steps_done / self.eps_decay)
-        self.steps_done += 1
+            math.exp(-1. * self.steps / self.eps_decay)
+        self.steps += 1
         # display.data.q_values.append(q_values.max(1)[0].item())
         if sample > eps_threshold:
             with torch.no_grad():
@@ -137,7 +138,7 @@ class LearningAgent:
         else:
             # Random action
             action = random.randrange(N_ACTIONS)
-            while action == REVERSED[self.old_action]:
+            while action == REVERSED[self.last_action]:
                 action = random.randrange(N_ACTIONS)
             return torch.tensor([[action]], device=device, dtype=torch.long)
 
@@ -156,16 +157,14 @@ class LearningAgent:
         plt.savefig('plot.png')
 
     def train(self):
+        obs = self.game.start()
         action_interval = 0.02
         start_time = time.time()
-        frames = []
-        episodes += 1
+        self.episode += 1
         lives = 3
-        jump_dead_step = False
         obs, reward, done, info = self.game.step(2)
         obs = obs[0].flatten().astype(dtype=np.float32)
         state = torch.from_numpy(obs).unsqueeze(0).to(device)
-        got_reward = False
         reward_sum = 0
         last_score = 0
         while True:
@@ -180,7 +179,7 @@ class LearningAgent:
                     reward_ = 20
                 if last_score < reward:
                     reward_sum += reward - last_score
-                old_action = action_t
+                self.last_action = action_t
                 last_score = reward
                 if remaining_lives < lives:
                     lives -= 1
@@ -196,14 +195,8 @@ class LearningAgent:
                                    torch.tensor([reward_], device=device), next_state, done)
 
                 state = next_state
-                if self.steps_done % 2 == 0:
-                    self.optimize_model(
-                        self.policy,
-                        self.target,
-                        self.memory,
-                        self.optimizer,
-                        device
-                    )
+                if self.steps % 2 == 0:
+                    self.optimize_model()
                 if self.steps % TARGET_UPDATE == 0:
                     self.target.load_state_dict(self.policy.state_dict())
                 start_time = time.time()
@@ -216,8 +209,14 @@ class LearningAgent:
                 reward_sum = 0
                 torch.cuda.empty_cache()
                 break
-            if episodes % 500 == 0:
+            if self.episode % 500 == 0:
                 torch.save(self.policy.state_dict(), os.path.join(
-                    os.getcwd() + "\\results", f"policy-model-{episodes}.pt"))
+                    os.getcwd() + "\\results", f"policy-model-{self.episode}.pt"))
                 torch.save(self.target.state_dict(), os.path.join(
-                    os.getcwd() + "\\results", f"target-model-{episodes}.pt"))
+                    os.getcwd() + "\\results", f"target-model-{self.episode}.pt"))
+
+
+if __name__ == '__main__':
+    agetnt = LearningAgent()
+    while True:
+        agetnt.train()
