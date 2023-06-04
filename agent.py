@@ -1,40 +1,44 @@
-import pandas as pd
 import numpy as np
-from constants import *
 
-from game import GameWrapper
 
-raw_maze_data = []
-with open('maze1.txt', 'r') as f:
-    for line in f:
-        raw_maze_data.append(line.split())
-maze_data = np.array(raw_maze_data)
-for idx, values in enumerate(maze_data):
-    for id, value in enumerate(values):
-        if value == '.' or value == 'p' or value == '+':
-            maze_data[idx][id] = 1
-        else:
-            maze_data[idx][id] = 0
-maze_data = maze_data.astype(dtype=np.float32)
-print(maze_data.shape)
-game = GameWrapper()
-game.start()
-prev_x = 0
-prev_y = 0
-index = 0
-while True:
-    # game.step(UP)
-    game.update()
-    x = int(game.pacman_position().x / 16) 
-    y = int(game.pacman_position().y / 16) 
-    if x == prev_x and y == prev_y:
-        continue
-    prev_x = x 
-    prev_y = y 
-    if maze_data[int(y)][int(x)] == 1:
-        index += 1
-        print("maze value ="+ str(index),maze_data[int(y)][int(x)])
-        print(x, y)
-    else: 
-        print("maze index =", x,y)
+class PacmanGameState:
+    def __init__(self, grid_size):
+        self.grid_size = grid_size
+        self.pacman_pos = (0, 0)
+        self.ghost_pos = (0, 0)
+        self.pellets = []
+        self.score = 0
 
+    def get_state_vector(self):
+        state_vector = []
+
+        # Add Pacman position
+        state_vector.extend(self.pacman_pos)
+
+        # Add Ghost position
+        state_vector.extend(self.ghost_pos)
+
+        # Add Pellet positions
+        for pellet_pos in self.pellets:
+            state_vector.extend(pellet_pos)
+
+        # Add width and height of the game grid
+        state_vector.append(self.grid_size[0])
+        state_vector.append(self.grid_size[1])
+
+        # Add score
+        state_vector.append(self.score)
+
+        return np.array(state_vector)
+
+
+# Example usage
+grid_size = (800, 600)  # Width and height of the game grid in pixels
+game_state = PacmanGameState(grid_size)
+game_state.pacman_pos = (200, 300)
+game_state.ghost_pos = (600, 450)
+game_state.pellets = [(100, 200), (400, 300), (700, 400)]
+game_state.score = 100
+
+state_vector = game_state.get_state_vector()
+print(state_vector)

@@ -80,6 +80,7 @@ class LearningAgent:
         self.steps = 0
         self.target = NeuralNetwork().to(device)
         self.policy = NeuralNetwork().to(device)
+        self.load_model()
         self.memory = ExperienceReplay(self.replay_size)
         self.game = GameWrapper()
         self.last_action = 0
@@ -224,17 +225,16 @@ class LearningAgent:
         path = os.path.join(
             os.getcwd() + "\\results", f"target-model-{name}.pt")
         self.target.load_state_dict(torch.load(path))
-        self.target.eval()
+        self.target.train()
         path = os.path.join(
             os.getcwd() + "\\results", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
-        self.target.eval()
+        self.policy.train()
 
     def train(self):
-        self.load_model()
         self.save_model()
         obs = self.game.start()
-        action_interval = 0.016
+        action_interval = 0.02
         start_time = time.time()
         self.episode += 1
         lives = 3
