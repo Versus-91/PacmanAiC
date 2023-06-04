@@ -41,13 +41,16 @@ class Pacman(Entity):
                 self.direction = direction
             else:
                 self.target = self.getNewTarget(self.direction)
-
             if self.target is self.node:
                 self.direction = STOP
             self.setPosition()
+            dirs = self.validDirections()
+            if direction not in dirs and direction != 0:
+                return True
         else:
             if self.oppositeDirection(direction):
                 self.reverseDirection()
+        return False
 
     def getValidKey(self):
         key_pressed = pygame.key.get_pressed()

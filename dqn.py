@@ -56,7 +56,7 @@ EPS_MAX = 1.0
 EPS_MIN = 0.1
 TARGET_UPDATE = 60  # here
 REPLAY_MEMORY_SIZE = 3 * 6000
-steps_done = 0
+steps_done = 10000000
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
 
@@ -114,6 +114,10 @@ def optimize_model(policy_DQN, target_DQN, memory, optimizer, device):
 
 policy_DQN = DQN(22 * 18, N_ACTIONS).to(device)
 target_DQN = DQN(22 * 18, N_ACTIONS).to(device)
+policy_DQN.load_state_dict(torch.load(os.path.join(
+    os.getcwd() + "\\results", f"policy-model-1000.pt")))
+target_DQN.load_state_dict(torch.load(os.path.join(
+    os.getcwd() + "\\results", f"target-model-1000.pt")))
 optimizer = optim.SGD(
     policy_DQN.parameters(), lr=LR, momentum=MOMENTUM, nesterov=True
 )
