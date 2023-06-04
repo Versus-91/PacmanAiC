@@ -24,6 +24,7 @@ N_ACTIONS = 4
 BATCH_SIZE = 128
 TARGET_UPDATE = 60  # here
 K_FRAME = 2
+SAVE_EPISODE_FREQ = 100
 def optimization(it, r): return it % K_FRAME == 0 and r
 
 
@@ -75,7 +76,7 @@ class LearningAgent:
         self.gamma = 0.99
         self.momentum = 0.95
         self.replay_size = 80000
-        self.learning_rate = 0.001
+        self.learning_rate = 0.0001
         self.steps = 0
         self.target = NeuralNetwork().to(device)
         self.policy = NeuralNetwork().to(device)
@@ -88,8 +89,46 @@ class LearningAgent:
             self.policy.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov=True
         )
 
-    def transform_reward(reward):
-        return log(reward, 1000) if reward > 0 else reward
+    def calculate_distance(pos1, pos2):
+        # pos1 and pos2 are tuples representing positions (x, y)
+        x1, y1 = pos1
+        x2, y2 = pos2
+        distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        return distance
+
+    def calculate_reward(self, done, lives, eat_pellet, eat_powerup, hit_wall, hit_ghost):
+        # Initialize reward
+        reward = 0
+
+        # Check if the game is won or lost
+        if done:
+            if lives > 0:
+                reward = 100  # Game won
+            else:
+                reward = -100  # Game lost
+            return reward
+
+        # Calculate the distance to the nearest food pellet
+        # current_pos = state.get_pacman_position()
+        # nearest_pellet = state.get_nearest_pellet_position()
+        # distance_to_pellet = calculate_distance(current_pos, nearest_pellet)
+
+        # Check if Pacman ate a pellet
+        if eat_pellet:
+            reward += 10  # Pacman ate a pellet
+        if eat_powerup:
+            reward += 30  # Pacman ate a power pellet
+
+        # Encourage Pacman to move towards the nearest pellet
+        # reward -= distance_to_pellet
+
+        # Penalize Pacman for hitting walls or ghosts
+        if hit_wall:
+            reward -= 5  # Pacman hit a wall
+        if hit_ghost:
+            reward -= 50  # Pacman hit a ghost
+
+        return reward
 
     def optimize_model(self):
         if len(self.memory) < BATCH_SIZE:
@@ -120,10 +159,12 @@ class LearningAgent:
         for param in self.policy.parameters():
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-
+        if self.steps % TARGET_UPDATE == 0:
+            self.target.load_state_dict(self.policy.state_dict())
         # # Softmax update
         # for target_param, local_param in zip(target_DQN.parameters(), policy_DQN.parameters()):
         #     target_param.data.copy_(TAU * local_param.data + (1 - TAU) * target_param.data)
+
     def select_action(self, state):
         sample = random.random()
         eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
@@ -158,15 +199,29 @@ class LearningAgent:
         plt.savefig('plot.png')
 
     def process_state(self, states):
-        pallets_tensor = torch.from_numpy(states[0]).to(device)
-        ghosts_tensor = torch.from_numpy(states[1]).to(device)
-        concatenated = torch.cat(
-            (pallets_tensor, ghosts_tensor), dim=0).float().to(device=device)
-        return concatenated.view(1, 1, 72, 28)
+        pallets_tensor = torch.from_numpy(states[0]).float().to(device)
+        pacman_tensor = torch.from_numpy(states[1]).float().to(device)
+        pellets_tensor = torch.from_numpy(states[2]).float().to(device)
+        powerpellets_tensor = torch.from_numpy(states[3]).float().to(device)
+        ghosts_tensor = torch.from_numpy(states[4]).float().to(device)
+        frightened_ghosts_tensor = torch.from_numpy(
+            states[5]).float().to(device)
+        channel_matrix = torch.stack([pallets_tensor, pacman_tensor, pellets_tensor,
+                                     powerpellets_tensor, ghosts_tensor, frightened_ghosts_tensor], dim=0)
+        channel_matrix = channel_matrix.unsqueeze(0)
+        return channel_matrix
+
+    def save_model(self):
+        if self.episode % SAVE_EPISODE_FREQ == 0:
+            torch.save(self.policy.state_dict(), os.path.join(
+                os.getcwd() + "\\results", f"policy-model-{self.episode}-{self.steps}.pt"))
+            torch.save(self.target.state_dict(), os.path.join(
+                os.getcwd() + "\\results", f"target-model-{self.episode}-{self.steps}.pt"))
 
     def train(self):
+        self.save_model()
         obs = self.game.start()
-        action_interval = 0.05
+        action_interval = 0.06
         start_time = time.time()
         self.episode += 1
         lives = 3
@@ -176,6 +231,7 @@ class LearningAgent:
         state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
+        pellet_eaten = 0
         while True:
             current_time = time.time()
             elapsed_time = current_time - start_time
@@ -184,36 +240,25 @@ class LearningAgent:
                 action_t = action.item()
                 obs, reward, done, remaining_lives, invalid_move, pellet_name = self.game.step(
                     action_t)
-                reward_ = (reward - last_score)/10
-                if pellet_name == 2:
-                    reward_ += 3
-                if reward_ >= 200:
-                    reward_ = 4
+                hit_ghost = False
+                if lives != remaining_lives:
+                    hit_ghost = True
+                    lives -= 1
+                next_state = self.process_state(obs)
+                reward_ = self.calculate_reward(
+                    done, lives, reward - last_score == 10, reward - last_score == 50, invalid_move, hit_ghost)
+                print(reward_)
                 if last_score < reward:
                     reward_sum += reward - last_score
-                self.last_action = action_t
                 last_score = reward
-                if remaining_lives < lives:
-                    lives -= 1
-                    reward_ = -2
-                if invalid_move:
-                    reward_ = -3
-                if done and lives > 0:
-                    print("won")
-                    reward_ = 4
-                # observation = obs[0].flatten().astype(dtype=np.float32)
-
-                next_state = self.process_state(obs)
                 action_tensor = torch.tensor(
                     [[action_t]], device=device, dtype=torch.long)
                 self.memory.append(state, action_tensor,
                                    torch.tensor([reward_], device=device), next_state, done)
-
                 state = next_state
                 if self.steps % 2 == 0:
                     self.optimize_model()
-                if self.steps % TARGET_UPDATE == 0:
-                    self.target.load_state_dict(self.policy.state_dict())
+
                 start_time = time.time()
             elif elapsed_time < action_interval:
                 self.game.update()
@@ -226,11 +271,6 @@ class LearningAgent:
                 reward_sum = 0
                 torch.cuda.empty_cache()
                 break
-            if self.episode % 500 == 0:
-                torch.save(self.policy.state_dict(), os.path.join(
-                    os.getcwd() + "\\results", f"policy-model-{self.episode}-{self.steps}.pt"))
-                torch.save(self.target.state_dict(), os.path.join(
-                    os.getcwd() + "\\results", f"target-model-{self.episode}-{self.steps}.pt"))
 
 
 if __name__ == '__main__':
