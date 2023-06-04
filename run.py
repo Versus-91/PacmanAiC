@@ -17,12 +17,12 @@ from mazedata import MazeData
 
 game_states = {
     'pallet': 1,
-    'powerpallet': 0.9,
-    'ghost_fright': 0.6,
-    'ghost': 0.5,
-    'pacman': 0.4,
-    'wall': 0.1,
-    'path': 0.2,
+    'powerpallet': 1,
+    'ghost_fright': 1,
+    'ghost': 1,
+    'pacman': 1,
+    'wall': 1,
+    'path': 1,
     'empty': 0
 }
 
@@ -308,12 +308,12 @@ class GameController(object):
                 # pallets.push((idx, id))
                 if value in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '=', 'X']:
                     walls[idx][id] = game_states.get('wall')
-                if value == 'n' or value == '|' or value == '-' or value == '.' or value == 'p' or value == '+':
-                    walls[idx][id] = game_states.get('path')
-        for idx, values in enumerate(self.eatenPellets):
-            x = int(values.position.x / 16)
-            y = int(values.position.y / 16)
-            walls[y][x] = game_states.get('path')
+                # if value == 'n' or value == '|' or value == '-' or value == '.' or value == 'p' or value == '+':
+                #     walls[idx][id] = game_states.get('path')
+        # for idx, values in enumerate(self.eatenPellets):
+        #     x = int(values.position.x / 16)
+        #     y = int(values.position.y / 16)
+        #     walls[y][x] = game_states.get('path')
         for idx, values in enumerate(self.pellets.pelletList):
             x = int(values.position.x / 16)
             y = int(values.position.y / 16)
@@ -370,11 +370,11 @@ class GameController(object):
             self.eatenPellets.append(pellet)
             self.pellets.numEaten += 1
             self.updateScore(pellet.points)
-            # if self.pellets.numEaten == 30:
-            #     self.ghosts.inky.startNode.allowAccess(RIGHT, self.ghosts.inky)
-            # if self.pellets.numEaten == 70:
-            #     self.ghosts.clyde.startNode.allowAccess(
-            #         LEFT, self.ghosts.clyde)
+            if self.pellets.numEaten == 30:
+                self.ghosts.inky.startNode.allowAccess(RIGHT, self.ghosts.inky)
+            if self.pellets.numEaten == 70:
+                self.ghosts.clyde.startNode.allowAccess(
+                    LEFT, self.ghosts.clyde)
             self.pellets.pelletList.remove(pellet)
             if pellet.name == POWERPELLET:
                 self.ghosts.startFreight()

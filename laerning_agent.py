@@ -86,7 +86,7 @@ class LearningAgent:
         self.last_action = 0
         self.last_reward = -1
         self.rewards = []
-        state_buffer = deque(maxlen=4)
+        self.state_buffer = deque(maxlen=4)
         self.episode = 0
         self.optimizer = optim.SGD(
             self.policy.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov=True
@@ -220,6 +220,10 @@ class LearningAgent:
         channel_matrix = channel_matrix.unsqueeze(0)
         return channel_matrix
 
+    def batch_state(self):
+        input_tensor = torch.cat(tuple(self.state_buffer)).to(device)
+        return input_tensor
+
     def save_model(self):
         if self.episode % SAVE_EPISODE_FREQ == 0:
             torch.save(self.policy.state_dict(), os.path.join(
@@ -245,10 +249,13 @@ class LearningAgent:
         start_time = time.time()
         self.episode += 1
         lives = 3
-        obs, reward, done, info, invalid_move = self.game.step(2)
+        for i in range(4):
+            obs, reward, done, info, invalid_move = self.game.step(2)
+            s = self.process_state(obs)
+            self.state_buffer.append(s)
         # obs = obs[0].flatten().astype(dtype=np.float32)
         # state = torch.from_numpy(obs).unsqueeze(0).to(device)
-        state = self.process_state(obs)
+        state = self.batch_state()
         reward_sum = 0
         last_score = 0
         pellet_eaten = 0
@@ -260,11 +267,12 @@ class LearningAgent:
                 action_t = action.item()
                 obs, reward, done, remaining_lives, invalid_move = self.game.step(
                     action_t)
+                self.state_buffer.append(self.process_state(obs))
                 hit_ghost = False
                 if lives != remaining_lives:
                     hit_ghost = True
                     lives -= 1
-                next_state = self.process_state(obs)
+                next_state = self.batch_state()
                 reward_ = self.calculate_reward(
                     done, lives, reward - last_score == 10, reward - last_score == 50, invalid_move, hit_ghost, reward - last_score >= 200)
                 if last_score < reward:
