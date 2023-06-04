@@ -96,7 +96,7 @@ class LearningAgent:
         distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
         return distance
 
-    def calculate_reward(self, done, lives, eat_pellet, eat_powerup, hit_wall, hit_ghost):
+    def calculate_reward(self, done, lives, eat_pellet, eat_powerup, hit_wall, hit_ghost, ate_ghost):
         # Initialize reward
         reward = 0
 
@@ -127,7 +127,8 @@ class LearningAgent:
             reward -= 5  # Pacman hit a wall
         if hit_ghost:
             reward -= 50  # Pacman hit a ghost
-
+        if ate_ghost:
+            reward += 30
         return reward
 
     def optimize_model(self):
@@ -218,10 +219,22 @@ class LearningAgent:
             torch.save(self.target.state_dict(), os.path.join(
                 os.getcwd() + "\\results", f"target-model-{self.episode}-{self.steps}.pt"))
 
+    def load_model(self, name="200-44483"):
+        self.steps = 44483
+        path = os.path.join(
+            os.getcwd() + "\\results", f"target-model-{name}.pt")
+        self.target.load_state_dict(torch.load(path))
+        self.target.eval()
+        path = os.path.join(
+            os.getcwd() + "\\results", f"policy-model-{name}.pt")
+        self.policy.load_state_dict(torch.load(path))
+        self.target.eval()
+
     def train(self):
+        self.load_model()
         self.save_model()
         obs = self.game.start()
-        action_interval = 0.06
+        action_interval = 0.016
         start_time = time.time()
         self.episode += 1
         lives = 3
@@ -246,8 +259,7 @@ class LearningAgent:
                     lives -= 1
                 next_state = self.process_state(obs)
                 reward_ = self.calculate_reward(
-                    done, lives, reward - last_score == 10, reward - last_score == 50, invalid_move, hit_ghost)
-                print(reward_)
+                    done, lives, reward - last_score == 10, reward - last_score == 50, invalid_move, hit_ghost, reward - last_score >= 200)
                 if last_score < reward:
                     reward_sum += reward - last_score
                 last_score = reward
