@@ -153,13 +153,13 @@ class LearningAgent:
         done_array = [s for s in batch.done]
         dones = torch.from_numpy(
             np.vstack(extract(done_array)).astype(np.uint8)).to(device)
-        predicted_targets = self.policy(state_batch).gather(1, action_batch)
-        target_values = self.target(new_state_batch).detach().max(1)[0]
+        predicted_qvalues = self.policy(state_batch).gather(1, action_batch)
+        target_qvalues = self.target(new_state_batch).detach().max(1)[0]
         labels = reward_batch + self.gamma * \
-            (1 - dones.squeeze(1)) * target_values
+            (1 - dones.squeeze(1)) * target_qvalues
 
         criterion = torch.nn.SmoothL1Loss()
-        loss = criterion(predicted_targets,
+        loss = criterion(predicted_qvalues,
                          labels.detach().unsqueeze(1)).to(device)
         # display.data.losses.append(loss.item())
         # print("loss", loss.item())
@@ -185,6 +185,7 @@ class LearningAgent:
                 q_values = self.policy(state)
             # Optimal action
             vals = q_values.max(1)[1]
+            item = vals.view(-1, 1)
             return vals.view(1, 1)
         else:
             # Random action
