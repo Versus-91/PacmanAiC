@@ -23,7 +23,11 @@ game_states = {
     'pacman': 1,
     'wall': 1,
     'path': 1,
-    'empty': 0
+    'empty': 0,
+    'left': -0.1,
+    'right': -0.2,
+    'up': -0.3,
+    'down': -0.4
 }
 
 
@@ -323,13 +327,13 @@ class GameController(object):
             y = int(powepellet.position.y / 16)
         x = int(round(self.pacman.position.x / 16))
         y = int(round(self.pacman.position.y / 16))
-        pacman[y][x] = game_states.get('pacman')
+        pacman[y][x] = self.pacman.direction
         assert walls[y][x] != game_states.get('wall')
         x = int(round(self.ghosts.blinky.position.x / 16))
         y = int(round(self.ghosts.blinky.position.y / 16))
         self.check_ghost_pos(walls[y][x], x, y)
         if self.ghosts.blinky.mode.current is not FREIGHT:
-            ghosts[y][x] = game_states.get('ghost')
+            ghosts[y][x] = self.ghosts.blinky.direction
         else:
             frightened_ghosts[y][x] = game_states.get('ghost_fright')
 
@@ -337,7 +341,7 @@ class GameController(object):
         y = int(round(self.ghosts.inky.position.y / 16))
         self.check_ghost_pos(walls[y][x], x, y)
         if self.ghosts.inky.mode.current is not FREIGHT:
-            ghosts[y][x] = game_states.get('ghost')
+            ghosts[y][x] = self.ghosts.blinky.direction
         else:
             frightened_ghosts[y][x] = game_states.get('ghost_fright')
 
@@ -345,14 +349,14 @@ class GameController(object):
         y = int(round(self.ghosts.pinky.position.y / 16))
         self.check_ghost_pos(walls[y][x], x, y)
         if self.ghosts.pinky.mode.current is not FREIGHT:
-            ghosts[y][x] = game_states.get('ghost')
+            ghosts[y][x] = self.ghosts.blinky.direction
         else:
             frightened_ghosts[y][x] = game_states.get('ghost_fright')
         x = int(round(self.ghosts.clyde.position.x / 16))
         y = int(round(self.ghosts.clyde.position.y / 16))
         self.check_ghost_pos(walls[y][x], x, y)
         if self.ghosts.clyde.mode.current is not FREIGHT:
-            ghosts[y][x] = game_states.get('ghost')
+            ghosts[y][x] = self.ghosts.blinky.direction
         else:
             frightened_ghosts[y][x] = game_states.get('ghost_fright')
         # state.append(maze_data)
