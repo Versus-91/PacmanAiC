@@ -36,7 +36,7 @@ class Maze1(MazeBase):
         self.homeoffset = (11.5, 14)
         self.homenodeconnectLeft = (12, 14)
         self.homenodeconnectRight = (15, 14)
-        self.pacmanStart = (15, 26)
+        self.pacmanStart = (6, 11)
         self.fruitStart = (9, 20)
         self.ghostNodeDeny = {UP: ((12, 14), (15, 14), (12, 26), (15, 26)), LEFT: (self.addOffset(2, 3),),
                               RIGHT: (self.addOffset(2, 3),)}
@@ -50,7 +50,7 @@ class Maze2(MazeBase):
         self.homeoffset = (11.5, 14)
         self.homenodeconnectLeft = (9, 14)
         self.homenodeconnectRight = (18, 14)
-        self.pacmanStart = (16, 26)
+        self.pacmanStart = (12, 26)
         self.fruitStart = (11, 20)
         self.ghostNodeDeny = {UP: ((9, 14), (18, 14), (11, 23), (16, 23)), LEFT: (self.addOffset(2, 3),),
                               RIGHT: (self.addOffset(2, 3),)}
