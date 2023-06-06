@@ -22,10 +22,9 @@ matplotlib.use('Agg')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
 BATCH_SIZE = 128
-TARGET_UPDATE = 60  # here
+TARGET_UPDATE = 50
 K_FRAME = 2
 SAVE_EPISODE_FREQ = 100
-def optimization(it, r): return it % K_FRAME == 0 and r
 
 
 Experience = namedtuple('Experience', field_names=[
@@ -75,8 +74,8 @@ class LearningAgent:
         self.eps_decay = 1000
         self.gamma = 0.99
         self.momentum = 0.95
-        self.replay_size = 80000
-        self.learning_rate = 0.0003
+        self.replay_size = 40000
+        self.learning_rate = 0.0001
         self.steps = 0
         self.target = QNetwork().to(device)
         self.policy = QNetwork().to(device)
@@ -86,7 +85,6 @@ class LearningAgent:
         self.last_action = 0
         self.last_reward = -1
         self.rewards = []
-        state_buffer = deque(maxlen=4)
         self.episode = 0
         self.optimizer = optim.SGD(
             self.policy.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov=True
@@ -107,9 +105,10 @@ class LearningAgent:
         # Check if the game is won or lost
         if done:
             if lives > 0:
-                reward = 10  # Game won
+                print("won")
+                reward = 20  # Game won
             else:
-                reward = -10  # Game lost
+                reward = -20  # Game lost
             return reward
 
         # Calculate the distance to the nearest food pellet
@@ -121,6 +120,7 @@ class LearningAgent:
         if eat_pellet:
             reward += 1  # Pacman ate a pellet
         if eat_powerup:
+            print("ate pellet")
             reward += 3  # Pacman ate a power pellet
 
         # Encourage Pacman to move towards the nearest pellet
@@ -128,13 +128,14 @@ class LearningAgent:
 
         # Penalize Pacman for hitting walls or ghosts
         if hit_wall:
-            print("hit the wall")
-            reward -= 1  # Pacman hit a wall
+            reward -= 2  # Pacman hit a wall
         if hit_ghost:
-            reward -= 5  # Pacman hit a ghost
+            reward -= 8  # Pacman hit a ghost
+            print("damn ghost", reward)
         if ate_ghost:
-            reward += 3
-        self.last_reward = reward
+            print("ate ghost")
+            reward += 5
+        reward += -1
         # if self.last_reward == 0 and reward == 0:
         #     reward = -0.5
         return reward
@@ -208,15 +209,14 @@ class LearningAgent:
         plt.savefig('plot.png')
 
     def process_state(self, states):
-        walls_stnsor = torch.from_numpy(states[0]).float().to(device)
-        pacman_tensor = torch.from_numpy(states[1]).float().to(device)
+        walls_tensor = torch.from_numpy(states[1]).float().to(device)
+        pacman_tennsor = torch.from_numpy(states[0]).float().to(device)
         pellets_tensor = torch.from_numpy(states[2]).float().to(device)
-        powerpellets_tensor = torch.from_numpy(states[3]).float().to(device)
-        ghosts_tensor = torch.from_numpy(states[4]).float().to(device)
+        ghosts_tensor = torch.from_numpy(states[3]).float().to(device)
         frightened_ghosts_tensor = torch.from_numpy(
-            states[5]).float().to(device)
-        channel_matrix = torch.stack([walls_stnsor, pacman_tensor, pellets_tensor,
-                                     powerpellets_tensor, ghosts_tensor, frightened_ghosts_tensor], dim=0)
+            states[4]).float().to(device)
+        channel_matrix = torch.stack(
+            [walls_tensor, pacman_tennsor, pellets_tensor, ghosts_tensor, frightened_ghosts_tensor], dim=0)
         channel_matrix = channel_matrix.unsqueeze(0)
         return channel_matrix
 
@@ -241,7 +241,7 @@ class LearningAgent:
     def train(self):
         self.save_model()
         obs = self.game.start()
-        action_interval = 0.02
+        action_interval = 0.01
         start_time = time.time()
         self.episode += 1
         lives = 3
@@ -251,7 +251,6 @@ class LearningAgent:
         state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
-        pellet_eaten = 0
         while True:
             current_time = time.time()
             elapsed_time = current_time - start_time
@@ -290,6 +289,39 @@ class LearningAgent:
                 reward_sum = 0
                 torch.cuda.empty_cache()
                 break
+
+
+def test(self, episodes=10):
+    self.save_model()
+    obs = self.game.start()
+    action_interval = 0.01
+    start_time = time.time()
+    self.episode += 1
+    obs, reward, done, info, invalid_move = self.game.step(2)
+    # obs = obs[0].flatten().astype(dtype=np.float32)
+    # state = torch.from_numpy(obs).unsqueeze(0).to(device)
+    state = self.process_state(obs)
+    reward_sum = 0
+    while self.episode < episodes:
+        current_time = time.time()
+        elapsed_time = current_time - start_time
+        if elapsed_time >= action_interval:
+            action = self.select_action(state)
+            action_t = action.item()
+            obs, reward, done, remaining_lives, invalid_move = self.game.step(
+                action_t)
+            start_time = time.time()
+        elif elapsed_time < action_interval:
+            self.game.update()
+        if done:
+            assert reward_sum == reward
+            self.rewards.append(reward_sum)
+            self.plot_rewards()
+            time.sleep(1)
+            self.game.restart()
+            reward_sum = 0
+            torch.cuda.empty_cache()
+            break
 
 
 if __name__ == '__main__':
