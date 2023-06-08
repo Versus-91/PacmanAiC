@@ -32,7 +32,7 @@ class NeuralNetwork(nn.Module):
 class QNetwork(nn.Module):
     def __init__(self):
         super(QNetwork, self).__init__()
-        self.conv1 = nn.Conv2d(5, 16, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(4, 16, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
         self.relu2 = nn.ReLU()
@@ -41,7 +41,6 @@ class QNetwork(nn.Module):
         self.fc2 = nn.Linear(128, 4)
 
     def forward(self, x):
-        # Define the forward pass of the neural network
         x = self.conv1(x)
         x = self.relu1(x)
         x = self.conv2(x)

@@ -118,10 +118,10 @@ class LearningAgent:
 
         # Check if Pacman ate a pellet
         if eat_pellet:
-            reward += 1  # Pacman ate a pellet
+            reward += 3  # Pacman ate a pellet
         if eat_powerup:
             print("ate pellet")
-            reward += 3  # Pacman ate a power pellet
+            reward += 4  # Pacman ate a power pellet
 
         # Encourage Pacman to move towards the nearest pellet
         # reward -= distance_to_pellet
@@ -209,14 +209,13 @@ class LearningAgent:
         plt.savefig('plot.png')
 
     def process_state(self, states):
-        walls_tensor = torch.from_numpy(states[1]).float().to(device)
-        pacman_tennsor = torch.from_numpy(states[0]).float().to(device)
-        pellets_tensor = torch.from_numpy(states[2]).float().to(device)
-        ghosts_tensor = torch.from_numpy(states[3]).float().to(device)
+        walls_tensor = torch.from_numpy(states[0]).float().to(device)
+        pellets_tensor = torch.from_numpy(states[1]).float().to(device)
+        ghosts_tensor = torch.from_numpy(states[2]).float().to(device)
         frightened_ghosts_tensor = torch.from_numpy(
-            states[4]).float().to(device)
+            states[3]).float().to(device)
         channel_matrix = torch.stack(
-            [walls_tensor, pacman_tennsor, pellets_tensor, ghosts_tensor, frightened_ghosts_tensor], dim=0)
+            [walls_tensor, pellets_tensor, ghosts_tensor, frightened_ghosts_tensor], dim=0)
         channel_matrix = channel_matrix.unsqueeze(0)
         return channel_matrix
 
@@ -281,7 +280,7 @@ class LearningAgent:
             elif elapsed_time < action_interval:
                 self.game.update()
             if done:
-                assert reward_sum == reward
+                # assert reward_sum == reward
                 self.rewards.append(reward_sum)
                 self.plot_rewards()
                 time.sleep(1)

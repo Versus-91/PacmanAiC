@@ -300,15 +300,15 @@ class GameController(object):
     def direction_state(self, direction):
         match direction:
             case 0:
-                return 1
+                return 10
             case 1:
-                return 0.9
+                return 11
             case -1:
-                return 0.8
+                return 12
             case 2:
-                return 0.7
+                return 13
             case -2:
-                return 0.6
+                return 14
 
     def get_sate(self):
         raw_maze_data = []
@@ -338,22 +338,23 @@ class GameController(object):
             x = int(pellet.position.x / 16)
             y = int(pellet.position.y / 16)
             if pellet.name == 1:
-                pellets[y][x] = game_states.get('pallet') - 0.1
-            else:
                 pellets[y][x] = game_states.get('pallet')
+            else:
+                pellets[y][x] = game_states.get('pallet') + 1
 
         x = int(round(self.pacman.position.x / 16))
         y = int(round(self.pacman.position.y / 16))
         assert walls[y][x] != 1
-        pacman[y][x] = self.direction_state(self.pacman.direction)
+        walls[y][x] = self.direction_state(self.pacman.direction)
         assert walls[y][x] != game_states.get('wall')
         x = int(round(self.ghosts.blinky.position.x / 16))
         y = int(round(self.ghosts.blinky.position.y / 16))
         self.check_ghost_pos(walls[y][x], x, y)
         if self.ghosts.blinky.mode.current is not FREIGHT and self.ghosts.blinky.mode.current is not SPAWN:
-            ghosts[y][x] = self.direction_state(self.ghosts.blinky.direction)
+            ghosts[y][x] = -1 * \
+                self.direction_state(self.ghosts.blinky.direction)
         elif self.ghosts.blinky.mode.current is FREIGHT:
-            frightened_ghosts[y][x] = self.direction_state(
+            frightened_ghosts[y][x] = -1 * self.direction_state(
                 self.ghosts.blinky.direction)
 
         # x = int(round(self.ghosts.inky.position.x / 16))
@@ -370,9 +371,10 @@ class GameController(object):
         y = int(round(self.ghosts.pinky.position.y / 16))
         self.check_ghost_pos(walls[y][x], x, y)
         if self.ghosts.pinky.mode.current is not FREIGHT and self.ghosts.pinky.mode.current is not SPAWN:
-            ghosts[y][x] = self.direction_state(self.ghosts.pinky.direction)
+            ghosts[y][x] = -1 * \
+                self.direction_state(self.ghosts.pinky.direction)
         elif self.ghosts.pinky.mode.current is FREIGHT:
-            frightened_ghosts[y][x] = self.direction_state(
+            frightened_ghosts[y][x] = -1 * self.direction_state(
                 self.ghosts.pinky.direction)
         # x = int(round(self.ghosts.clyde.position.x / 16))
         # y = int(round(self.ghosts.clyde.position.y / 16))
@@ -390,7 +392,7 @@ class GameController(object):
         # walls = walls[7:29, 5:23]
         # pellets = pellets[7:29, 5:23]
         # ghosts = ghosts[7:29, 5:23]
-        return [pacman[7:29, 5:23], walls[7:29, 5:23], pellets[7:29, 5:23], ghosts[7:29, 5:23], frightened_ghosts[7:29, 5:23]]
+        return [walls[7:29, 5:23], pellets[7:29, 5:23], ghosts[7:29, 5:23], frightened_ghosts[7:29, 5:23]]
 
     def checkPelletEvents(self):
         pellet = self.pacman.eatPellets(self.pellets.pelletList)
