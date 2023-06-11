@@ -136,7 +136,7 @@ class GameController(object):
         self.nodes.denyAccessList(15, 26, UP, self.ghosts)
 
     def update(self):
-        dt = self.clock.tick(120)
+        dt = self.clock.tick(120) / 1000
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -166,7 +166,7 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        self.get_sate()
+        self.get_state()
 
     def perform_action(self, action):
         state = None
@@ -288,10 +288,9 @@ class GameController(object):
         y = int(round(self.ghosts.blinky.position.y / 16))
         self.check_ghost_pos(game[y][x], x, y)
         if self.ghosts.blinky.mode.current is not FREIGHT:
-            game[y][x] = -2
+            game[y][x] = -4
         elif self.ghosts.blinky.mode.current is FREIGHT:
-            game[y][x] = self.direction_state(
-                self.ghosts.blinky.direction)
+            game[y][x] = 4
 
         x = int(round(self.ghosts.inky.position.x / 16))
         y = int(round(self.ghosts.inky.position.y / 16))
@@ -303,18 +302,17 @@ class GameController(object):
 
         x = int(round(self.ghosts.pinky.position.x / 16))
         y = int(round(self.ghosts.pinky.position.y / 16))
-        # self.check_ghost_pos(walls[y][x], x, y)
         if self.ghosts.pinky.mode.current is not FREIGHT:
             game[y][x] = -4
         elif self.ghosts.pinky.mode.current is FREIGHT:
             game[y][x] = 4
-        x = int(round(self.ghosts.clyde.position.x / 16))
-        y = int(round(self.ghosts.clyde.position.y / 16))
-        self.check_ghost_pos(game[y][x], x, y)
-        if self.ghosts.clyde.mode.current is not FREIGHT:
-            game[y][x] = -4
-        else:
-            game[y][x] = 4
+        # x = int(round(self.ghosts.clyde.position.x / 16))
+        # y = int(round(self.ghosts.clyde.position.y / 16))
+        # self.check_ghost_pos(game[y][x], x, y)
+        # if self.ghosts.clyde.mode.current is not FREIGHT:
+        #     game[y][x] = -4
+        # else:
+        #     game[y][x] = 4
         # state.append(maze_data)
         # state.append(ghosts_position)
         # state.append(self.pacman.direction)
@@ -322,7 +320,8 @@ class GameController(object):
         # walls = walls[7:29, 5:23]
         # pellets = pellets[7:29, 5:23]
         # ghosts = ghosts[7:29, 5:23]
-        return [game[7:29, 5:23]]
+        cropped_state = game[7:27, :]
+        return [cropped_state]
 
     def checkPelletEvents(self):
         pellet = self.pacman.eatPellets(self.pellets.pelletList)

@@ -165,7 +165,13 @@ class LearningAgent:
         # for target_param, local_param in zip(target_DQN.parameters(), policy_DQN.parameters()):
         #     target_param.data.copy_(TAU * local_param.data + (1 - TAU) * target_param.data)
 
-    def select_action(self, state):
+    def select_action(self, state, eval=False):
+        if eval:
+            with torch.no_grad():
+                q_values = self.policy(state)
+            # Optimal action
+            vals = q_values.max(1)[1]
+            return vals.view(1, 1)
         sample = random.random()
         eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
             math.exp(-1. * self.counter / self.eps_decay)
@@ -184,19 +190,19 @@ class LearningAgent:
                 action = random.randrange(N_ACTIONS)
             return torch.tensor([[action]], device=device, dtype=torch.long)
 
-    def plot_rewards(self, show_result=False):
+    def plot_rewards(self, name="plot.png", avg=100):
         plt.figure(1)
         durations_t = torch.tensor(self.rewards, dtype=torch.float)
         plt.xlabel('Episode')
         plt.ylabel('Rewards')
         plt.plot(durations_t.numpy())
-        if len(durations_t) >= 100:
-            means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-            means = torch.cat((torch.zeros(99), means))
+        if len(durations_t) >= avg:
+            means = durations_t.unfold(0, avg, 1).mean(1).view(-1)
+            means = torch.cat((torch.zeros(avg - 1), means))
             plt.plot(means.numpy())
 
         plt.pause(0.001)
-        plt.savefig('plot.png')
+        plt.savefig(name)
 
     def process_state(self, states):
 
@@ -209,7 +215,7 @@ class LearningAgent:
         return channel_matrix
 
     def save_model(self):
-        if self.episode % SAVE_EPISODE_FREQ == 0 and self.episode !=0 :
+        if self.episode % SAVE_EPISODE_FREQ == 0 and self.episode != 0:
             torch.save(self.policy.state_dict(), os.path.join(
                 os.getcwd() + "\\results", f"policy-model-{self.episode}-{self.steps}.pt"))
             torch.save(self.target.state_dict(), os.path.join(
@@ -220,11 +226,11 @@ class LearningAgent:
         path = os.path.join(
             os.getcwd() + "\\results", f"target-model-{name}.pt")
         self.target.load_state_dict(torch.load(path))
-        self.target.train()
+        self.target.eval()
         path = os.path.join(
             os.getcwd() + "\\results", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
-        self.policy.train()
+        self.policy.eval()
 
     def train(self):
         self.save_model()
@@ -233,8 +239,9 @@ class LearningAgent:
         start_time = time.time()
         self.episode += 1
         lives = 3
-        random_action =random.choice([0, 1, 2, 3])
-        obs, reward, done, remaining_lives, invalid_move = self.game.step(random_action)
+        random_action = random.choice([0, 1, 2, 3])
+        obs, reward, done, remaining_lives, invalid_move = self.game.step(
+            random_action)
         # obs = obs[0].flatten().astype(dtype=np.float32)
         # state = torch.from_numpy(obs).unsqueeze(0).to(device)
         for i in range(4):
@@ -288,41 +295,47 @@ class LearningAgent:
                 torch.cuda.empty_cache()
                 break
 
-
-def test(self, episodes=10):
-    self.save_model()
-    obs = self.game.start()
-    action_interval = 0.01
-    start_time = time.time()
-    self.episode += 1
-    obs, reward, done, info, invalid_move = self.game.step(2)
-    # obs = obs[0].flatten().astype(dtype=np.float32)
-    # state = torch.from_numpy(obs).unsqueeze(0).to(device)
-    state = self.process_state(obs)
-    reward_sum = 0
-    while self.episode < episodes:
-        current_time = time.time()
-        elapsed_time = current_time - start_time
-        if elapsed_time >= action_interval:
-            action = self.select_action(state)
-            action_t = action.item()
+    def test(self, episodes=10):
+        self.load_model(name="100-42266")
+        obs = self.game.start()
+        self.episode += 1
+        lives = 3
+        random_action = random.choice([0, 1, 2, 3])
+        obs, reward, done, remaining_lives, invalid_move = self.game.step(
+            random_action)
+        for i in range(4):
             obs, reward, done, remaining_lives, invalid_move = self.game.step(
-                action_t)
-            start_time = time.time()
-        elif elapsed_time < action_interval:
-            self.game.update()
-        if done:
-            assert reward_sum == reward
-            self.rewards.append(reward_sum)
-            self.plot_rewards()
-            time.sleep(1)
-            self.game.restart()
-            reward_sum = 0
-            torch.cuda.empty_cache()
-            break
+                2)
+            self.buffer.append(obs[0])
+        state = self.process_state(self.buffer)
+        while self.episode < episodes:
+            action = self.select_action(state, eval=True)
+            action_t = action.item()
+            for i in range(4):
+                if not done:
+                    obs, reward, done, remaining_lives, invalid_move = self.game.step(
+                        action_t)
+                    if lives != remaining_lives:
+                        break
+                else:
+                    break
+            self.buffer.append(obs[0])
+            if lives != remaining_lives:
+                lives -= 1
+            state = self.process_state(self.buffer)
+            if done:
+                self.rewards.append(reward)
+                self.plot_rewards(name="test.png", avg=2)
+                time.sleep(1)
+                self.game.restart()
+                reward_sum = 0
+                torch.cuda.empty_cache()
+                break
 
 
 if __name__ == '__main__':
-    agetnt = LearningAgent()
+    agent = LearningAgent()
+    agent.rewards = []
     while True:
-        agetnt.train()
+        # agetnt.train()
+        agent.test()
