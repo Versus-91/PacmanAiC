@@ -102,75 +102,6 @@ class GameController(object):
         self.ghosts.pinky.startNode.denyAccess(RIGHT, self.ghosts.pinky)
         self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
 
-    def get_sate_old(self):
-        raw_maze_data = []
-        with open('maze1.txt', 'r') as f:
-            for line in f:
-                raw_maze_data.append(line.split())
-        maze_data = np.array(raw_maze_data)
-        pellets = np.zeros(maze_data.shape)
-        ghosts = np.zeros(maze_data.shape)
-        powerpellets = np.zeros(maze_data.shape)
-        walls = np.zeros(maze_data.shape)
-        for idx, values in enumerate(maze_data):
-            for id, value in enumerate(values):
-                # if value == '.' or value == 'p' or value == '+':
-                # pallets.push((idx, id))
-                if value == 'X':
-                    walls[idx][id] = game_states.get('empty')
-                if value in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']:
-                    walls[idx][id] = game_states.get('wall')
-                if value == 'n' or value == '|' or value == '-':
-                    walls[idx][id] = game_states.get('path')
-        for idx, values in enumerate(self.eatenPellets):
-            x = int(values.position.x / 16)
-            y = int(values.position.y / 16)
-            walls[y][x] = game_states.get('path')
-        for idx, values in enumerate(self.pellets.pelletList):
-            x = int(values.position.x / 16)
-            y = int(values.position.y / 16)
-            walls[y][x] = game_states.get('pallet')
-        for idx, values in enumerate(self.pellets.powerpellets):
-            pellets[y][x] = game_states.get('powerpallet')
-
-        x = int(self.pacman.position.x / 16)
-        y = int(self.pacman.position.y / 16)
-        walls[y][x] = game_states.get('pacman')
-        x = int(self.ghosts.blinky.position.x / 16)
-        y = int(self.ghosts.blinky.position.y / 16)
-        if self.ghosts.blinky.mode.current is not FREIGHT:
-            walls[y][x] = game_states.get('ghost')
-        else:
-            walls[y][x] = game_states.get('ghost_fright')
-
-        x = int(self.ghosts.inky.position.x / 16)
-        y = int(self.ghosts.inky.position.y / 16)
-        if self.ghosts.inky.mode.current is not FREIGHT:
-            walls[y][x] = game_states.get('ghost')
-        else:
-            walls[y][x] = game_states.get('ghost_fright')
-        x = int(self.ghosts.pinky.position.x / 16)
-        y = int(self.ghosts.pinky.position.y / 16)
-        if self.ghosts.pinky.mode.current is not FREIGHT:
-            walls[y][x] = game_states.get('ghost')
-        else:
-            walls[y][x] = game_states.get('ghost_fright')
-        x = int(self.ghosts.clyde.position.x / 16)
-        y = int(self.ghosts.clyde.position.y / 16)
-        if self.ghosts.clyde.mode.current is not FREIGHT:
-            walls[y][x] = game_states.get('ghost')
-        else:
-            walls[y][x] = game_states.get('ghost_fright')
-
-        # state.append(maze_data)
-        # state.append(ghosts_position)
-        # state.append(self.pacman.direction)
-        # state.append(pellets_position)
-        walls = walls[7:29, 5:23]
-        pellets = pellets[7:29, 5:23]
-        ghosts = ghosts[7:29, 5:23]
-        return [walls, pellets, ghosts]
-
     def startGame_old(self):
         self.mazedata.loadMaze(self.level)
         self.mazesprites = MazeSprites("maze1.txt", "maze1_rotation.txt")
@@ -205,7 +136,7 @@ class GameController(object):
         self.nodes.denyAccessList(15, 26, UP, self.ghosts)
 
     def update(self):
-        dt = self.clock.tick(60) / 1000.0
+        dt = self.clock.tick(120)
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -238,6 +169,7 @@ class GameController(object):
         self.get_sate()
 
     def perform_action(self, action):
+        state = None
         invalid_move = False
         if not self.pacman.validDirection(action):
             invalid_move = True
@@ -257,23 +189,22 @@ class GameController(object):
                 self.pacman.update(dt, action)
         else:
             self.pacman.update(dt)
-        if self.flashBG:
-            self.flashTimer += dt
-            if self.flashTimer >= self.flashTime:
-                self.flashTimer = 0
-                if self.background == self.background_norm:
-                    self.background = self.background_flash
-                else:
-                    self.background = self.background_norm
+        # if self.flashBG:
+        #     self.flashTimer += dt
+        #     if self.flashTimer >= self.flashTime:
+        #         self.flashTimer = 0
+        #         if self.background == self.background_norm:
+        #             self.background = self.background_flash
+        #         else:
+        #             self.background = self.background_norm
 
         afterPauseMethod = self.pause.update(dt)
         if afterPauseMethod is not None:
             afterPauseMethod()
         self.checkEvents()
         self.render()
-
-        surface_array = pygame.surfarray.array3d(pygame.display.get_surface())
-        return (self.get_sate(), self.score, self.lives == 0 or (self.pellets.isEmpty()), self.lives, invalid_move)
+        state = self.get_state()
+        return (state, self.score, self.lives == 0 or (self.pellets.isEmpty()), self.lives, invalid_move)
 
     def checkEvents(self):
         for event in pygame.event.get():
@@ -310,81 +241,80 @@ class GameController(object):
             case -2:
                 return 14
 
-    def get_sate(self):
+    def get_state(self):
         raw_maze_data = []
         with open('maze1.txt', 'r') as f:
             for line in f:
                 raw_maze_data.append(line.split())
         maze_data = np.array(raw_maze_data)
-        pellets = np.zeros(maze_data.shape)
-        ghosts = np.zeros(maze_data.shape)
-        frightened_ghosts = np.zeros(maze_data.shape)
-        pacman = np.zeros(maze_data.shape)
+        # pellets = np.zeros(maze_data.shape)
+        # pellets = np.zeros(maze_data.shape)
+        # ghosts = np.zeros(maze_data.shape)
+        # frightened_ghosts = np.zeros(maze_data.shape)
+        # pacman = np.zeros(maze_data.shape)
         # powerpellets = np.zeros(maze_data.shape)
-        walls = np.zeros(maze_data.shape)
+        # walls = np.zeros(maze_data.shape)
+        game = np.zeros(maze_data.shape)
         for idx, values in enumerate(maze_data):
             for id, value in enumerate(values):
                 # if value == '.' or value == 'p' or value == '+':
                 # pallets.push((idx, id))
                 if value in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '=', 'X']:
-                    walls[idx][id] = game_states.get('wall')
-                # if value == 'n' or value == '|' or value == '-' or value == '.' or value == 'p' or value == '+':
-                #     walls[idx][id] = game_states.get('path')
+                    game[idx][id] = 0
+                if value == 'n' or value == '|' or value == '-' or value == '.' or value == 'p' or value == '+':
+                    game[idx][id] = 1
         # for idx, values in enumerate(self.eatenPellets):
         #     x = int(values.position.x / 16)
         #     y = int(values.position.y / 16)
         #     walls[y][x] = game_states.get('path')
+        for idx, pellet in enumerate(self.eatenPellets):
+            x = int(pellet.position.x / 16)
+            y = int(pellet.position.y / 16)
+            game[y][x] = 1
         for idx, pellet in enumerate(self.pellets.pelletList):
             x = int(pellet.position.x / 16)
             y = int(pellet.position.y / 16)
             if pellet.name == 1:
-                pellets[y][x] = game_states.get('pallet')
+                game[y][x] = 2
             else:
-                pellets[y][x] = game_states.get('pallet') + 1
+                game[y][x] = 3
 
         x = int(round(self.pacman.position.x / 16))
         y = int(round(self.pacman.position.y / 16))
-        assert walls[y][x] != 1
-        walls[y][x] = self.direction_state(self.pacman.direction)
-        assert walls[y][x] != game_states.get('wall')
+        # assert game[y][x] != 1
+        game[y][x] = 5
+        assert game[y][x] != game_states.get('wall')
         x = int(round(self.ghosts.blinky.position.x / 16))
         y = int(round(self.ghosts.blinky.position.y / 16))
-        self.check_ghost_pos(walls[y][x], x, y)
-        if self.ghosts.blinky.mode.current is not FREIGHT and self.ghosts.blinky.mode.current is not SPAWN:
-            ghosts[y][x] = -1 * \
-                self.direction_state(self.ghosts.blinky.direction)
+        self.check_ghost_pos(game[y][x], x, y)
+        if self.ghosts.blinky.mode.current is not FREIGHT:
+            game[y][x] = -2
         elif self.ghosts.blinky.mode.current is FREIGHT:
-            frightened_ghosts[y][x] = -1 * self.direction_state(
+            game[y][x] = self.direction_state(
                 self.ghosts.blinky.direction)
 
-        # x = int(round(self.ghosts.inky.position.x / 16))
-        # y = int(round(self.ghosts.inky.position.y / 16))
-        # self.check_ghost_pos(walls[y][x], x, y)
-        # if self.ghosts.inky.mode.current is not FREIGHT:
-        #     ghosts[y][x] = game_states.get(
-        #         'ghost') + self.ghosts.inky.direction
-        # else:
-        #     frightened_ghosts[y][x] = game_states.get(
-        #         'ghost_fright') + + self.ghosts.inky.direction
+        x = int(round(self.ghosts.inky.position.x / 16))
+        y = int(round(self.ghosts.inky.position.y / 16))
+        self.check_ghost_pos(game[y][x], x, y)
+        if self.ghosts.inky.mode.current is not FREIGHT:
+            game[y][x] = -4
+        else:
+            game[y][x] = 4
 
         x = int(round(self.ghosts.pinky.position.x / 16))
         y = int(round(self.ghosts.pinky.position.y / 16))
-        self.check_ghost_pos(walls[y][x], x, y)
-        if self.ghosts.pinky.mode.current is not FREIGHT and self.ghosts.pinky.mode.current is not SPAWN:
-            ghosts[y][x] = -1 * \
-                self.direction_state(self.ghosts.pinky.direction)
-        elif self.ghosts.pinky.mode.current is FREIGHT:
-            frightened_ghosts[y][x] = -1 * self.direction_state(
-                self.ghosts.pinky.direction)
-        # x = int(round(self.ghosts.clyde.position.x / 16))
-        # y = int(round(self.ghosts.clyde.position.y / 16))
         # self.check_ghost_pos(walls[y][x], x, y)
-        # if self.ghosts.clyde.mode.current is not FREIGHT:
-        #     ghosts[y][x] = game_states.get(
-        #         'ghost_fright') + + self.ghosts.clyde.direction
-        # else:
-        #     frightened_ghosts[y][x] = game_states.get(
-        #         'ghost_fright') + + self.ghosts.clyde.direction
+        if self.ghosts.pinky.mode.current is not FREIGHT:
+            game[y][x] = -4
+        elif self.ghosts.pinky.mode.current is FREIGHT:
+            game[y][x] = 4
+        x = int(round(self.ghosts.clyde.position.x / 16))
+        y = int(round(self.ghosts.clyde.position.y / 16))
+        self.check_ghost_pos(game[y][x], x, y)
+        if self.ghosts.clyde.mode.current is not FREIGHT:
+            game[y][x] = -4
+        else:
+            game[y][x] = 4
         # state.append(maze_data)
         # state.append(ghosts_position)
         # state.append(self.pacman.direction)
@@ -392,7 +322,7 @@ class GameController(object):
         # walls = walls[7:29, 5:23]
         # pellets = pellets[7:29, 5:23]
         # ghosts = ghosts[7:29, 5:23]
-        return [walls[7:29, 5:23], pellets[7:29, 5:23], ghosts[7:29, 5:23], frightened_ghosts[7:29, 5:23]]
+        return [game[7:29, 5:23]]
 
     def checkPelletEvents(self):
         pellet = self.pacman.eatPellets(self.pellets.pelletList)
@@ -400,11 +330,11 @@ class GameController(object):
             self.eatenPellets.append(pellet)
             self.pellets.numEaten += 1
             self.updateScore(pellet.points)
-            # if self.pellets.numEaten == 30:
-            #     self.ghosts.inky.startNode.allowAccess(RIGHT, self.ghosts.inky)
-            # if self.pellets.numEaten == 70:
-            #     self.ghosts.clyde.startNode.allowAccess(
-            #         LEFT, self.ghosts.clyde)
+            if self.pellets.numEaten == 30:
+                self.ghosts.inky.startNode.allowAccess(RIGHT, self.ghosts.inky)
+            if self.pellets.numEaten == 70:
+                self.ghosts.clyde.startNode.allowAccess(
+                    LEFT, self.ghosts.clyde)
             self.pellets.pelletList.remove(pellet)
             if pellet.name == POWERPELLET:
                 self.ghosts.startFreight()

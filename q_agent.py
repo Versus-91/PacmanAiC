@@ -22,7 +22,7 @@ matplotlib.use('Agg')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
 BATCH_SIZE = 128
-TARGET_UPDATE = 50
+TARGET_UPDATE = 20
 K_FRAME = 2
 SAVE_EPISODE_FREQ = 100
 
@@ -39,16 +39,16 @@ is_reversed = (
 
 class ExperienceReplay:
     def __init__(self, capacity) -> None:
-        self.buffer = deque(maxlen=capacity)
+        self.exps = deque(maxlen=capacity)
 
     def append(self, state, action, reward, next_state, done):
-        self.buffer.append(Experience(state, action, reward, done, next_state))
+        self.exps.append(Experience(state, action, reward, done, next_state))
 
     def sample(self, batch_size):
-        return random.sample(self.buffer, batch_size)
+        return random.sample(self.exps, batch_size)
 
     def __len__(self):
-        return len(self.buffer)
+        return len(self.exps)
 
 
 class DQN(nn.Module):
@@ -74,7 +74,7 @@ class LearningAgent:
         self.eps_decay = 1000
         self.gamma = 0.99
         self.momentum = 0.95
-        self.replay_size = 40000
+        self.replay_size = 20000
         self.learning_rate = 0.0001
         self.steps = 0
         self.target = QNetwork().to(device)
@@ -83,8 +83,10 @@ class LearningAgent:
         self.memory = ExperienceReplay(self.replay_size)
         self.game = GameWrapper()
         self.last_action = 0
+        self.buffer = deque(maxlen=4)
         self.last_reward = -1
         self.rewards = []
+        self.counter = 0
         self.episode = 0
         self.optimizer = optim.SGD(
             self.policy.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov=True
@@ -97,52 +99,40 @@ class LearningAgent:
         distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
         return distance
 
-    def calculate_reward(self, done, lives, eat_pellet, eat_powerup, hit_wall, hit_ghost, ate_ghost):
+    def calculate_reward(self, done, lives, eat_pellet, eat_powerup, hit_wall, hit_ghost, ate_ghost, action):
 
-        # Initialize reward
         reward = 0
-
-        # Check if the game is won or lost
         if done:
             if lives > 0:
                 print("won")
-                reward = 20  # Game won
+                reward = 50
             else:
-                reward = -20  # Game lost
+                reward = -50
+            return reward
+        if eat_pellet:
+            reward += 12
+            return reward
+        if eat_powerup:
+            print("power up")
+            reward += 15
             return reward
 
-        # Calculate the distance to the nearest food pellet
-        # current_pos = state.get_pacman_position()
-        # nearest_pellet = state.get_nearest_pellet_position()
-        # distance_to_pellet = calculate_distance(current_pos, nearest_pellet)
-
-        # Check if Pacman ate a pellet
-        if eat_pellet:
-            reward += 3  # Pacman ate a pellet
-        if eat_powerup:
-            print("ate pellet")
-            reward += 4  # Pacman ate a power pellet
-
-        # Encourage Pacman to move towards the nearest pellet
-        # reward -= distance_to_pellet
-
-        # Penalize Pacman for hitting walls or ghosts
         if hit_wall:
-            reward -= 2  # Pacman hit a wall
+            return -10  # Pacman hit a wall
         if hit_ghost:
-            reward -= 8  # Pacman hit a ghost
-            print("damn ghost", reward)
+            return -200  # Pacman hit a ghost
         if ate_ghost:
-            print("ate ghost")
-            reward += 5
-        reward += -1
+            return 20
+        if REVERSED[self.last_action] == action:
+            return -6
         # if self.last_reward == 0 and reward == 0:
         #     reward = -0.5
-        return reward
+        return -4
 
     def optimize_model(self):
         if len(self.memory) < BATCH_SIZE:
             return
+        self.counter += 1
         experiences = self.memory.sample(BATCH_SIZE)
         batch = Experience(*zip(*experiences))
         state_batch = torch.cat(batch.state)
@@ -178,9 +168,9 @@ class LearningAgent:
     def select_action(self, state):
         sample = random.random()
         eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
-            math.exp(-1. * self.steps / self.eps_decay)
-        self.steps += 1
+            math.exp(-1. * self.counter / self.eps_decay)
         # display.data.q_values.append(q_values.max(1)[0].item())
+        self.steps += 1
         if sample > eps_threshold:
             with torch.no_grad():
                 q_values = self.policy(state)
@@ -209,18 +199,17 @@ class LearningAgent:
         plt.savefig('plot.png')
 
     def process_state(self, states):
-        walls_tensor = torch.from_numpy(states[0]).float().to(device)
-        pellets_tensor = torch.from_numpy(states[1]).float().to(device)
-        ghosts_tensor = torch.from_numpy(states[2]).float().to(device)
-        frightened_ghosts_tensor = torch.from_numpy(
-            states[3]).float().to(device)
-        channel_matrix = torch.stack(
-            [walls_tensor, pellets_tensor, ghosts_tensor, frightened_ghosts_tensor], dim=0)
+
+        tensor = [torch.from_numpy(arr).float().to(device) for arr in states]
+
+        # frightened_ghosts_tensor = torch.from_numpy(
+        #     states[3]).float().to(device)
+        channel_matrix = torch.stack(tensor, dim=0)
         channel_matrix = channel_matrix.unsqueeze(0)
         return channel_matrix
 
     def save_model(self):
-        if self.episode % SAVE_EPISODE_FREQ == 0:
+        if self.episode % SAVE_EPISODE_FREQ == 0 and self.episode !=0 :
             torch.save(self.policy.state_dict(), os.path.join(
                 os.getcwd() + "\\results", f"policy-model-{self.episode}-{self.steps}.pt"))
             torch.save(self.target.state_dict(), os.path.join(
@@ -244,41 +233,51 @@ class LearningAgent:
         start_time = time.time()
         self.episode += 1
         lives = 3
-        obs, reward, done, info, invalid_move = self.game.step(2)
+        random_action =random.choice([0, 1, 2, 3])
+        obs, reward, done, remaining_lives, invalid_move = self.game.step(random_action)
         # obs = obs[0].flatten().astype(dtype=np.float32)
         # state = torch.from_numpy(obs).unsqueeze(0).to(device)
-        state = self.process_state(obs)
+        for i in range(4):
+            obs, reward, done, remaining_lives, invalid_move = self.game.step(
+                2)
+            self.buffer.append(obs[0])
+        state = self.process_state(self.buffer)
         reward_sum = 0
         last_score = 0
         while True:
-            current_time = time.time()
-            elapsed_time = current_time - start_time
-            if elapsed_time >= action_interval:
-                action = self.select_action(state)
-                action_t = action.item()
-                obs, reward, done, remaining_lives, invalid_move = self.game.step(
-                    action_t)
-                hit_ghost = False
-                if lives != remaining_lives:
-                    hit_ghost = True
-                    lives -= 1
-                next_state = self.process_state(obs)
-                reward_ = self.calculate_reward(
-                    done, lives, reward - last_score == 10, reward - last_score == 50, invalid_move, hit_ghost, reward - last_score >= 200)
-                if last_score < reward:
-                    reward_sum += reward - last_score
-                last_score = reward
-                action_tensor = torch.tensor(
-                    [[action_t]], device=device, dtype=torch.long)
-                self.memory.append(state, action_tensor,
-                                   torch.tensor([reward_], device=device), next_state, done)
-                state = next_state
-                if self.steps % 2 == 0:
-                    self.optimize_model()
+            action = self.select_action(state)
+            action_t = action.item()
+            for i in range(4):
+                if not done:
+                    obs, reward, done, remaining_lives, invalid_move = self.game.step(
+                        action_t)
+                    if lives != remaining_lives:
+                        break
+                else:
+                    break
 
-                start_time = time.time()
-            elif elapsed_time < action_interval:
-                self.game.update()
+            self.buffer.append(obs[0])
+            hit_ghost = False
+            if lives != remaining_lives:
+                hit_ghost = True
+                lives -= 1
+            next_state = self.process_state(self.buffer)
+            reward_ = self.calculate_reward(
+                done, lives, reward - last_score == 10, reward - last_score == 50, invalid_move, hit_ghost, reward - last_score >= 200, action_t)
+            if last_score < reward:
+                reward_sum += reward - last_score
+            last_score = reward
+            if last_score % 100 == 0:
+                if reward_ > 0:
+                    reward *= 0.2
+            action_tensor = torch.tensor(
+                [[action_t]], device=device, dtype=torch.long)
+            self.memory.append(state, action_tensor,
+                               torch.tensor([reward_], device=device), next_state, done)
+            state = next_state
+            if self.steps % 2 == 0:
+                self.optimize_model()
+            self.last_action = action_t
             if done:
                 # assert reward_sum == reward
                 self.rewards.append(reward_sum)
