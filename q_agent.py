@@ -88,6 +88,7 @@ class LearningAgent:
         self.last_reward = -1
         self.rewards = []
         self.counter = 0
+        self.score = 0
         self.episode = 0
         self.optimizer = optim.SGD(
             self.policy.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov=True
@@ -259,6 +260,7 @@ class LearningAgent:
         state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
+        self.score = 0
         while True:
             action = self.select_action(state)
             action_t = action.item()
