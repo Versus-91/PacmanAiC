@@ -87,6 +87,7 @@ class LearningAgent:
         self.last_reward = -1
         self.rewards = []
         self.counter = 0
+        self.score = 0
         self.episode = 0
         self.optimizer = optim.SGD(
             self.policy.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov=True
@@ -100,7 +101,6 @@ class LearningAgent:
         return distance
 
     def calculate_reward(self, done, lives, eat_pellet, eat_powerup, hit_wall, hit_ghost, ate_ghost, action):
-
         reward = 0
         if done:
             if lives > 0:
@@ -111,23 +111,18 @@ class LearningAgent:
             return reward
         if eat_pellet:
             reward += 12
-            return reward
         if eat_powerup:
-            print("power up")
-            reward += 15
-            return reward
-
+            reward += 13
         if hit_wall:
-            return -10  # Pacman hit a wall
+            reward -= 5  # Pacman hit a wall
         if hit_ghost:
-            return -200  # Pacman hit a ghost
+            reward -= 10  # Pacman hit a ghost
         if ate_ghost:
-            return 20
-        if REVERSED[self.last_action] == action:
-            return -6
-        # if self.last_reward == 0 and reward == 0:
-        #     reward = -0.5
-        return -4
+            reward += 14
+        if reward > 0:
+            progress = self.score // 200
+            reward += progress
+        return reward
 
     def optimize_model(self):
         if len(self.memory) < BATCH_SIZE:
@@ -264,6 +259,7 @@ class LearningAgent:
         state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
+        self.score = 0
         while True:
             action = self.select_action(state)
             action_t = action.item()
@@ -275,7 +271,7 @@ class LearningAgent:
                         break
                 else:
                     break
-
+            self.score = reward
             hit_ghost = False
             if lives != remaining_lives:
                 hit_ghost = True
@@ -341,5 +337,5 @@ if __name__ == '__main__':
     agent = LearningAgent()
     agent.rewards = []
     while True:
-        # agent.train()
-        agent.test()
+        agent.train()
+        # agent.test()
