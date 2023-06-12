@@ -53,6 +53,9 @@ class GameController(object):
         self.flashBG = False
         self.flashTime = 0.2
         self.flashTimer = 0
+        self.index = 0
+        self.prev_pacman_x = 0
+        self.prev_pacman_y = 0
         self.fruitCaptured = []
         self.fruitNode = None
         self.mazedata = MazeData()
@@ -324,6 +327,16 @@ class GameController(object):
         # pellets = pellets[7:29, 5:23]
         # ghosts = ghosts[7:29, 5:23]
         cropped_state = game[7:27, :]
+        x = int(round(self.pacman.position.x / 16))
+        y = int(round(self.pacman.position.y / 16))
+        if x != self.prev_pacman_x or y != self.prev_pacman_y:
+            self.index = 0
+            print("new x ,y ", x, y)
+        else:
+            self.index += 1
+            print("........", self.index)
+        self.prev_pacman_x = x
+        self.prev_pacman_y = y
         return [walls[7:27, :], pacman[7:27, :], ghosts[7:27, :], pellets[7:27, :]]
 
     def checkPelletEvents(self):

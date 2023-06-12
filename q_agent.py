@@ -77,6 +77,7 @@ class LearningAgent:
         self.replay_size = 20000
         self.learning_rate = 0.0001
         self.steps = 0
+        self.score = 0
         self.target = QNetwork().to(device)
         self.policy = QNetwork().to(device)
         # self.load_model()
@@ -99,7 +100,7 @@ class LearningAgent:
         distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
         return distance
 
-    def calculate_reward(self, done, lives, eat_pellet, eat_powerup, hit_wall, hit_ghost, ate_ghost, action):
+    def calculate_reward(self, done, lives, hit_wall, hit_ghost, action, prev_score):
 
         reward = 0
         if done:
@@ -109,25 +110,23 @@ class LearningAgent:
             else:
                 reward = -50
             return reward
-        if eat_pellet:
+        if self.score - prev_score == 10:
             reward += 12
-            return reward
-        if eat_powerup:
+        if self.score - prev_score == 50:
             print("power up")
             reward += 15
+        if reward > 0:
+            progress = self.score // 200
+            reward += progress
             return reward
-
-        if hit_wall:
-            return -10  # Pacman hit a wall
-        if hit_ghost:
-            return -200  # Pacman hit a ghost
-        if ate_ghost:
+        if self.score - prev_score >= 200:
             return 20
-        if REVERSED[self.last_action] == action:
-            return -6
-        # if self.last_reward == 0 and reward == 0:
-        #     reward = -0.5
-        return -4
+        if hit_wall:
+            reward -= 10
+        if hit_ghost:
+            reward -= 30
+        reward -= 4
+        return reward
 
     def optimize_model(self):
         if len(self.memory) < BATCH_SIZE:
@@ -251,41 +250,37 @@ class LearningAgent:
     def train(self):
         self.save_model()
         obs = self.game.start()
-        action_interval = 0.01
-        start_time = time.time()
+        self.score = 0
         self.episode += 1
         lives = 3
         random_action = random.choice([0, 1, 2, 3])
-        obs, reward, done, remaining_lives, invalid_move = self.game.step(
+        obs, self.score, done, remaining_lives, invalid_move = self.game.step(
             random_action)
-        # obs = obs[0].flatten().astype(dtype=np.float32)
-        # state = torch.from_numpy(obs).unsqueeze(0).to(device)
-        obs, reward, done, remaining_lives, invalid_move = self.game.step(2)
         state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
         while True:
             action = self.select_action(state)
             action_t = action.item()
-            for i in range(4):
+            for i in range(3):
                 if not done:
-                    obs, reward, done, remaining_lives, invalid_move = self.game.step(
+                    obs, self.score, done, remaining_lives, invalid_move = self.game.step(
                         action_t)
                     if lives != remaining_lives:
                         break
                 else:
                     break
-
             hit_ghost = False
             if lives != remaining_lives:
                 hit_ghost = True
                 lives -= 1
             next_state = self.process_state(obs)
             reward_ = self.calculate_reward(
-                done, lives, reward - last_score == 10, reward - last_score == 50, invalid_move, hit_ghost, reward - last_score >= 200, action_t)
-            if last_score < reward:
-                reward_sum += reward - last_score
-            last_score = reward
+                done, lives, invalid_move, hit_ghost, action_t, last_score)
+            print(reward_)
+            if last_score < self.score:
+                reward_sum += self.score - last_score
+            last_score = self.score
             self.memory.append(state, action,
                                torch.tensor([reward_], device=device), next_state, done)
             state = next_state
@@ -339,7 +334,7 @@ class LearningAgent:
 
 if __name__ == '__main__':
     agent = LearningAgent()
-    agent.rewards = []
+    # agent.rewards = []
     while True:
-        # agent.train()
-        agent.test()
+        agent.train()
+        # agent.test()
