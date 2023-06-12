@@ -77,8 +77,8 @@ class LearningAgent:
         self.replay_size = 20000
         self.learning_rate = 0.0001
         self.steps = 0
-        self.target = DQN(input_shape=888).to(device)
-        self.policy = DQN(input_shape=888).to(device)
+        self.target = DQN(input_shape=222).to(device)
+        self.policy = DQN(input_shape=222).to(device)
         # self.load_model()
         self.memory = ExperienceReplay(self.replay_size)
         self.game = GameWrapper()
@@ -113,7 +113,6 @@ class LearningAgent:
         if eat_pellet:
             reward += 12
         if eat_powerup:
-            print("power up")
             reward += 15
         if reward > 0:
             progress = self.score // 200
@@ -209,11 +208,12 @@ class LearningAgent:
 
     def process_state(self, states):
         # Flatten the arrays inside the state array#
-        flattened_state = []
-        for item in states:
-            flattened_state += [torch.flatten(torch.tensor(
-                arr, dtype=torch.float32)) for arr in item]
-
+        # flattened_state = []
+        # for item in states:
+        #     flattened_state += [torch.flatten(torch.tensor(
+        #         arr, dtype=torch.float32)) for arr in item]
+        flattened_state = [torch.flatten(torch.tensor(
+            arr, dtype=torch.float32)) for arr in states]
         # Convert to a tensor
         state_tensor = torch.cat(flattened_state).to(device)
         # frightened_ghosts_tensor = torch.from_numpy(
@@ -255,7 +255,7 @@ class LearningAgent:
             obs, self.score, done, remaining_lives, invalid_move = self.game.step(
                 random_action)
             self.buffer.append(obs)
-        state = self.process_state(self.buffer)
+        state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
         while True:
@@ -275,7 +275,7 @@ class LearningAgent:
             if lives != remaining_lives:
                 hit_ghost = True
                 lives -= 1
-            next_state = self.process_state(self.buffer)
+            next_state = self.process_state(obs)
             reward_ = self.calculate_reward(
                 done, lives, self.score - last_score == 10, self.score - last_score == 50, invalid_move, hit_ghost, self.score - last_score >= 200, action_t)
             if last_score < self.score:
