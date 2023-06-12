@@ -81,6 +81,7 @@ class GameController(object):
         self.pacman = Pacman(self.nodes.getNodeFromTiles(
             *self.mazedata.obj.pacmanStart))
         self.pellets = PelletGroup(self.mazedata.obj.name+".txt")
+        self.init_pellets = PelletGroup(self.mazedata.obj.name+".txt")
         self.eatenPellets = []
         self.ghosts = GhostGroup(self.nodes.getStartTempNode(), self.pacman)
 
@@ -203,7 +204,7 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        state = self.get_state()
+        state = self.get_state_positions()
         return (state, self.score, self.lives == 0 or (self.pellets.isEmpty()), self.lives, invalid_move)
 
     def checkEvents(self):
@@ -323,6 +324,57 @@ class GameController(object):
         # pellets = pellets[7:29, 5:23]
         # ghosts = ghosts[7:29, 5:23]
         return [game[7:29, 5:23]]
+
+    def get_state_positions(self):
+        ghosts = []
+        pellets = []
+        power_pellets = []
+        pacman = []
+        for idx, pellet in enumerate(self.init_pellets):
+            x = pellet.position.x
+            y = pellet.position.y
+            if pellet.name == 1:
+                pellets.append([x, y])
+            else:
+                power_pellets.append([x, y])
+
+        x = self.pacman.position.x
+        y = self.pacman.position.y
+        pacman.append([x, y])
+
+        # Blinky
+        x = self.ghosts.blinky.position.x
+        y = self.ghosts.blinky.position.y
+        if self.ghosts.blinky.mode.current != FREIGHT:
+            ghosts.append([x, y, -1])
+        else:
+            ghosts.append([x, y, 1])
+
+        # Inky
+        x = self.ghosts.inky.position.x
+        y = self.ghosts.inky.position.y
+        if self.ghosts.inky.mode.current != FREIGHT:
+            ghosts.append([x, y, -1])
+        else:
+            ghosts.append([x, y, 1])
+
+        # Pinky
+        x = self.ghosts.pinky.position.x
+        y = self.ghosts.pinky.position.y
+        if self.ghosts.pinky.mode.current != FREIGHT:
+            ghosts.append([x, y, -1])
+        else:
+            ghosts.append([x, y, 1])
+
+        # Clyde
+        x = self.ghosts.clyde.position.x
+        y = self.ghosts.clyde.position.y
+        if self.ghosts.clyde.mode.current != FREIGHT:
+            ghosts.append([x, y, -1])
+        else:
+            ghosts.append([x, y, 1])
+
+        return [pacman, ghosts, pellets, power_pellets]
 
     def checkPelletEvents(self):
         pellet = self.pacman.eatPellets(self.pellets.pelletList)
