@@ -247,65 +247,68 @@ class GameController(object):
             for line in f:
                 raw_maze_data.append(line.split())
         maze_data = np.array(raw_maze_data)
+        pellets = np.zeros(maze_data.shape)
         # pellets = np.zeros(maze_data.shape)
-        # pellets = np.zeros(maze_data.shape)
-        # ghosts = np.zeros(maze_data.shape)
+        ghosts = np.zeros(maze_data.shape)
         # frightened_ghosts = np.zeros(maze_data.shape)
-        # pacman = np.zeros(maze_data.shape)
+        pacman = np.zeros(maze_data.shape)
         # powerpellets = np.zeros(maze_data.shape)
-        # walls = np.zeros(maze_data.shape)
+        walls = np.zeros(maze_data.shape)
         game = np.zeros(maze_data.shape)
         for idx, values in enumerate(maze_data):
             for id, value in enumerate(values):
                 # if value == '.' or value == 'p' or value == '+':
                 # pallets.push((idx, id))
                 if value in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '=', 'X']:
-                    game[idx][id] = 0
-                if value == 'n' or value == '|' or value == '-' or value == '.' or value == 'p' or value == '+':
                     game[idx][id] = 1
+                # if value == 'n' or value == '|' or value == '-' or value == '.' or value == 'p' or value == '+':
+                #     game[idx][id] = 1
         # for idx, values in enumerate(self.eatenPellets):
         #     x = int(values.position.x / 16)
         #     y = int(values.position.y / 16)
         #     walls[y][x] = game_states.get('path')
-        for idx, pellet in enumerate(self.eatenPellets):
-            x = int(pellet.position.x / 16)
-            y = int(pellet.position.y / 16)
-            game[y][x] = 1
+        # for idx, pellet in enumerate(self.eatenPellets):
+        #     x = int(pellet.position.x / 16)
+        #     y = int(pellet.position.y / 16)
+        #     pellets[y][x] = 1
         for idx, pellet in enumerate(self.pellets.pelletList):
             x = int(pellet.position.x / 16)
             y = int(pellet.position.y / 16)
             if pellet.name == 1:
-                game[y][x] = 2
+                pellets[y][x] = 2
             else:
-                game[y][x] = 3
+                pellets[y][x] = 3
 
         x = int(round(self.pacman.position.x / 16))
         y = int(round(self.pacman.position.y / 16))
         # assert game[y][x] != 1
-        game[y][x] = 5
+        pacman[y][x] = self.direction_state(self.pacman.direction)
         assert game[y][x] != game_states.get('wall')
         x = int(round(self.ghosts.blinky.position.x / 16))
         y = int(round(self.ghosts.blinky.position.y / 16))
-        self.check_ghost_pos(game[y][x], x, y)
+        # self.check_ghost_pos(game[y][x], x, y)
         if self.ghosts.blinky.mode.current is not FREIGHT:
-            game[y][x] = -4
+            ghosts[y][x] = -1 * \
+                self.direction_state(self.ghosts.blinky.direction)
         elif self.ghosts.blinky.mode.current is FREIGHT:
-            game[y][x] = 4
+            ghosts[y][x] = self.direction_state(self.ghosts.blinky.direction)
 
         x = int(round(self.ghosts.inky.position.x / 16))
         y = int(round(self.ghosts.inky.position.y / 16))
-        self.check_ghost_pos(game[y][x], x, y)
+        # self.check_ghost_pos(game[y][x], x, y)
         if self.ghosts.inky.mode.current is not FREIGHT:
-            game[y][x] = -4
+            ghosts[y][x] = -1 * \
+                self.direction_state(self.ghosts.inky.direction)
         else:
-            game[y][x] = 4
+            ghosts[y][x] = self.direction_state(self.ghosts.inky.direction)
 
         x = int(round(self.ghosts.pinky.position.x / 16))
         y = int(round(self.ghosts.pinky.position.y / 16))
         if self.ghosts.pinky.mode.current is not FREIGHT:
-            game[y][x] = -4
+            ghosts[y][x] = -1 * \
+                self.direction_state(self.ghosts.pinky.direction)
         elif self.ghosts.pinky.mode.current is FREIGHT:
-            game[y][x] = 4
+            ghosts[y][x] = self.direction_state(self.ghosts.pinky.direction)
         # x = int(round(self.ghosts.clyde.position.x / 16))
         # y = int(round(self.ghosts.clyde.position.y / 16))
         # self.check_ghost_pos(game[y][x], x, y)
@@ -321,7 +324,7 @@ class GameController(object):
         # pellets = pellets[7:29, 5:23]
         # ghosts = ghosts[7:29, 5:23]
         cropped_state = game[7:27, :]
-        return [cropped_state]
+        return [walls[7:27, :], pacman[7:27, :], ghosts[7:27, :], pellets[7:27, :]]
 
     def checkPelletEvents(self):
         pellet = self.pacman.eatPellets(self.pellets.pelletList)
@@ -405,6 +408,9 @@ class GameController(object):
         self.pause.paused = False
         self.startGame()
         self.textgroup.updateLevel(self.level)
+
+    def quit(self):
+        exit()
 
     def restartGame(self):
         self.lives = 3

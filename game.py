@@ -18,6 +18,9 @@ class GameWrapper:
     def restart(self):
         self.controller.restartGame()
 
+    def stop(self):
+        self.controller.quit()
+
     def step(self, action):
         assert action >= 0 and action < 4
         if action == 0:

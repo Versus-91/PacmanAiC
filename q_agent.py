@@ -232,6 +232,22 @@ class LearningAgent:
         self.policy.load_state_dict(torch.load(path))
         self.policy.eval()
 
+    def map_directions(self):
+        num_directions = 4
+
+        current_direction = "up"
+
+        direction_mapping = {
+            "up": 0,
+            "down": 1,
+            "left": 2,
+            "right": 3
+        }
+
+        direction_encoding = np.zeros(num_directions)
+        direction_index = direction_mapping[current_direction]
+        direction_encoding[direction_index] = 1
+
     def train(self):
         self.save_model()
         obs = self.game.start()
@@ -244,11 +260,8 @@ class LearningAgent:
             random_action)
         # obs = obs[0].flatten().astype(dtype=np.float32)
         # state = torch.from_numpy(obs).unsqueeze(0).to(device)
-        for i in range(4):
-            obs, reward, done, remaining_lives, invalid_move = self.game.step(
-                2)
-            self.buffer.append(obs[0])
-        state = self.process_state(self.buffer)
+        obs, reward, done, remaining_lives, invalid_move = self.game.step(2)
+        state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
         while True:
@@ -263,23 +276,17 @@ class LearningAgent:
                 else:
                     break
 
-            self.buffer.append(obs[0])
             hit_ghost = False
             if lives != remaining_lives:
                 hit_ghost = True
                 lives -= 1
-            next_state = self.process_state(self.buffer)
+            next_state = self.process_state(obs)
             reward_ = self.calculate_reward(
                 done, lives, reward - last_score == 10, reward - last_score == 50, invalid_move, hit_ghost, reward - last_score >= 200, action_t)
             if last_score < reward:
                 reward_sum += reward - last_score
             last_score = reward
-            if last_score % 100 == 0:
-                if reward_ > 0:
-                    reward *= 0.2
-            action_tensor = torch.tensor(
-                [[action_t]], device=device, dtype=torch.long)
-            self.memory.append(state, action_tensor,
+            self.memory.append(state, action,
                                torch.tensor([reward_], device=device), next_state, done)
             state = next_state
             if self.steps % 2 == 0:
@@ -296,46 +303,43 @@ class LearningAgent:
                 break
 
     def test(self, episodes=10):
-        self.load_model(name="100-42266")
-        obs = self.game.start()
-        self.episode += 1
-        lives = 3
-        random_action = random.choice([0, 1, 2, 3])
-        obs, reward, done, remaining_lives, invalid_move = self.game.step(
-            random_action)
-        for i in range(4):
+        if self.episode < episodes:
+            self.load_model(name="1000-387631")
+            obs = self.game.start()
+            self.episode += 1
+            lives = 3
+            random_action = random.choice([0, 1, 2, 3])
             obs, reward, done, remaining_lives, invalid_move = self.game.step(
-                2)
-            self.buffer.append(obs[0])
-        state = self.process_state(self.buffer)
-        while self.episode < episodes:
-            action = self.select_action(state, eval=True)
-            action_t = action.item()
-            for i in range(4):
-                if not done:
-                    obs, reward, done, remaining_lives, invalid_move = self.game.step(
-                        action_t)
-                    if lives != remaining_lives:
+                random_action)
+            state = self.process_state(obs)
+            while True:
+                action = self.select_action(state, eval=True)
+                action_t = action.item()
+                for i in range(4):
+                    if not done:
+                        obs, reward, done, remaining_lives, invalid_move = self.game.step(
+                            action_t)
+                        if lives != remaining_lives:
+                            break
+                    else:
                         break
-                else:
+                if lives != remaining_lives:
+                    lives -= 1
+                state = self.process_state(obs)
+                if done:
+                    self.rewards.append(reward)
+                    self.plot_rewards(name="test.png", avg=2)
+                    time.sleep(1)
+                    self.game.restart()
+                    torch.cuda.empty_cache()
                     break
-            self.buffer.append(obs[0])
-            if lives != remaining_lives:
-                lives -= 1
-            state = self.process_state(self.buffer)
-            if done:
-                self.rewards.append(reward)
-                self.plot_rewards(name="test.png", avg=2)
-                time.sleep(1)
-                self.game.restart()
-                reward_sum = 0
-                torch.cuda.empty_cache()
-                break
+        else:
+            self.game.stop()
 
 
 if __name__ == '__main__':
     agent = LearningAgent()
     agent.rewards = []
     while True:
-        # agetnt.train()
+        # agent.train()
         agent.test()
