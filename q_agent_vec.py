@@ -77,8 +77,8 @@ class LearningAgent:
         self.replay_size = 20000
         self.learning_rate = 0.0001
         self.steps = 0
-        self.target = DQN(input_shape=222).to(device)
-        self.policy = DQN(input_shape=222).to(device)
+        self.target = DQN(input_shape=888).to(device)
+        self.policy = DQN(input_shape=888).to(device)
         # self.load_model()
         self.memory = ExperienceReplay(self.replay_size)
         self.game = GameWrapper()
@@ -128,8 +128,6 @@ class LearningAgent:
 
         if REVERSED[self.last_action] == action:
             reward -= 6
-        # if self.last_reward == 0 and reward == 0:
-        #     reward = -0.5
         reward -= 1
         return reward
 
@@ -210,9 +208,11 @@ class LearningAgent:
         plt.savefig('plot.png')
 
     def process_state(self, states):
-        # Flatten the arrays inside the state array
-        flattened_state = [torch.flatten(torch.tensor(
-            arr, dtype=torch.float32)) for arr in states]
+        # Flatten the arrays inside the state array#
+        flattened_state = []
+        for item in states:
+            flattened_state += [torch.flatten(torch.tensor(
+                arr, dtype=torch.float32)) for arr in item]
 
         # Convert to a tensor
         state_tensor = torch.cat(flattened_state).to(device)
@@ -251,21 +251,17 @@ class LearningAgent:
         self.episode += 1
         lives = 3
         random_action = random.choice([0, 1, 2, 3])
-        obs, self.score, done, remaining_lives, invalid_move = self.game.step(
-            random_action)
-        # obs = obs[0].flatten().astype(dtype=np.float32)
-        # state = torch.from_numpy(obs).unsqueeze(0).to(device)
         for i in range(4):
             obs, self.score, done, remaining_lives, invalid_move = self.game.step(
-                2)
+                random_action)
             self.buffer.append(obs)
-        state = self.process_state(obs)
+        state = self.process_state(self.buffer)
         reward_sum = 0
         last_score = 0
         while True:
             action = self.select_action(state)
             action_t = action.item()
-            for i in range(4):
+            for i in range(3):
                 if not done:
                     obs, self.score, done, remaining_lives, invalid_move = self.game.step(
                         action_t)
@@ -274,12 +270,12 @@ class LearningAgent:
                 else:
                     break
 
-            self.buffer.append(obs[0])
+            self.buffer.append(obs)
             hit_ghost = False
             if lives != remaining_lives:
                 hit_ghost = True
                 lives -= 1
-            next_state = self.process_state(obs)
+            next_state = self.process_state(self.buffer)
             reward_ = self.calculate_reward(
                 done, lives, self.score - last_score == 10, self.score - last_score == 50, invalid_move, hit_ghost, self.score - last_score >= 200, action_t)
             if last_score < self.score:

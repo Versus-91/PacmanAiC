@@ -330,7 +330,6 @@ class GameController(object):
         pellets = []
         power_pellets = []
         pacman = []
-        print(len(self.init_pellets.pelletList))
         for idx, pellet in enumerate(self.init_pellets.pelletList):
             x = pellet.position.x
             y = pellet.position.y
@@ -338,12 +337,21 @@ class GameController(object):
                 pellets.append([x, y])
             else:
                 power_pellets.append([x, y])
-
         x = self.pacman.position.x
         y = self.pacman.position.y
         pacman.append([x, y])
-
-        # Blinky
+        for i, p in enumerate(pellets):
+            items = [x for x in self.eatenPellets if x.position.x ==
+                     p[0] and x.position.y == p[1]]
+            if len(items) > 0:
+                if p != [0, 0]:
+                    pellets[i] = [0, 0]
+        for i, p in enumerate(power_pellets):
+            items = [x for x in self.eatenPellets if x.position.x ==
+                     p[0] and x.position.y == p[1]]
+            if len(items) > 0:
+                if p != [0, 0]:
+                    power_pellets[i] = [0, 0]
         x = self.ghosts.blinky.position.x
         y = self.ghosts.blinky.position.y
         if self.ghosts.blinky.mode.current != FREIGHT:
