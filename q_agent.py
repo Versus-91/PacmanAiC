@@ -107,26 +107,29 @@ class LearningAgent:
         if done:
             if lives > 0:
                 print("won")
-                reward = 50
+                reward = 30
             else:
-                reward = -50
+                reward = -30
             return reward
         if self.score - prev_score == 10:
-            reward += 12
+            reward += 10
         if self.score - prev_score == 50:
             print("power up")
-            reward += 15
+            reward += 11
         if reward > 0:
-            progress = self.score // 200
+            progress = self.score // 400
             reward += progress
             return reward
         if self.score - prev_score >= 200:
-            return 20
-        if hit_wall:
-            reward -= 10
+            return 12
+        # if hit_wall:
+        #     reward -= 10
         if hit_ghost:
             reward -= 30
+        if REVERSED[self.last_action] == action:
+            reward -= 1
         reward -= 4
+
         return reward
 
     def optimize_model(self):
@@ -258,7 +261,6 @@ class LearningAgent:
         obs, self.score, done, remaining_lives, invalid_move = self.game.step(
             random_action)
         state = self.process_state(obs)
-        reward_sum = 0
         last_score = 0
         self.score = 0
         while True:
@@ -280,8 +282,6 @@ class LearningAgent:
             reward_ = self.calculate_reward(
                 done, lives, invalid_move, hit_ghost, action_t, last_score)
             print(reward_)
-            if last_score < self.score:
-                reward_sum += self.score - last_score
             last_score = self.score
             self.memory.append(state, action,
                                torch.tensor([reward_], device=device), next_state, done)
@@ -291,11 +291,10 @@ class LearningAgent:
             self.last_action = action_t
             if done:
                 # assert reward_sum == reward
-                self.rewards.append(reward_sum)
+                self.rewards.append(self.score)
                 self.plot_rewards()
                 time.sleep(1)
                 self.game.restart()
-                reward_sum = 0
                 torch.cuda.empty_cache()
                 break
 
@@ -312,7 +311,8 @@ class LearningAgent:
             while True:
                 action = self.select_action(state, eval=True)
                 action_t = action.item()
-                for i in range(4):
+                print("action", action_t)
+                for i in range(3):
                     if not done:
                         obs, reward, done, remaining_lives, invalid_move = self.game.step(
                             action_t)
@@ -336,7 +336,7 @@ class LearningAgent:
 
 if __name__ == '__main__':
     agent = LearningAgent()
-    # agent.rewards = []
+    agent.rewards = []
     while True:
-        agent.train()
-        # agent.test()
+        # agent.train()
+        agent.test()
