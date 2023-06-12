@@ -52,7 +52,7 @@ class ExperienceReplay:
 
 
 class DQN(nn.Module):
-    def __init__(self, input_shape, num_actions):
+    def __init__(self, input_shape, num_actions=4):
         super(DQN, self).__init__()
         self.fc = nn.Sequential(
             nn.Linear(input_shape, 128),
@@ -77,8 +77,8 @@ class LearningAgent:
         self.replay_size = 20000
         self.learning_rate = 0.0001
         self.steps = 0
-        self.target = QNetwork().to(device)
-        self.policy = QNetwork().to(device)
+        self.target = DQN(input_shape=222).to(device)
+        self.policy = DQN(input_shape=222).to(device)
         # self.load_model()
         self.memory = ExperienceReplay(self.replay_size)
         self.game = GameWrapper()
@@ -139,9 +139,9 @@ class LearningAgent:
         self.counter += 1
         experiences = self.memory.sample(BATCH_SIZE)
         batch = Experience(*zip(*experiences))
-        state_batch = torch.cat(batch.state)
+        state_batch = torch.stack(batch.state)
         action_batch = torch.cat(batch.action)
-        new_state_batch = torch.cat(batch.new_state)
+        new_state_batch = torch.stack(batch.new_state)
         reward_batch = torch.cat(batch.reward)
         indices = random.sample(range(len(experiences)), k=BATCH_SIZE)
         def extract(list_): return [list_[i] for i in indices]
@@ -185,7 +185,8 @@ class LearningAgent:
             with torch.no_grad():
                 q_values = self.policy(state)
             # Optimal action
-            vals = q_values.max(1)[1]
+
+            vals = torch.argmax(q_values)
             return vals.view(1, 1)
         else:
             # Random action
@@ -209,14 +210,15 @@ class LearningAgent:
         plt.savefig('plot.png')
 
     def process_state(self, states):
+        # Flatten the arrays inside the state array
+        flattened_state = [torch.flatten(torch.tensor(
+            arr, dtype=torch.float32)) for arr in states]
 
-        tensor = [torch.from_numpy(arr).float().to(device) for arr in states]
-
+        # Convert to a tensor
+        state_tensor = torch.cat(flattened_state).to(device)
         # frightened_ghosts_tensor = torch.from_numpy(
         #     states[3]).float().to(device)
-        channel_matrix = torch.stack(tensor, dim=0)
-        channel_matrix = channel_matrix.unsqueeze(0)
-        return channel_matrix
+        return state_tensor
 
     def save_model(self):
         if self.episode % SAVE_EPISODE_FREQ == 0 and self.episode != 0:
@@ -256,8 +258,8 @@ class LearningAgent:
         for i in range(4):
             obs, self.score, done, remaining_lives, invalid_move = self.game.step(
                 2)
-            self.buffer.append(obs[0])
-        state = self.process_state(self.buffer)
+            self.buffer.append(obs)
+        state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
         while True:
@@ -277,7 +279,7 @@ class LearningAgent:
             if lives != remaining_lives:
                 hit_ghost = True
                 lives -= 1
-            next_state = self.process_state(self.buffer)
+            next_state = self.process_state(obs)
             reward_ = self.calculate_reward(
                 done, lives, self.score - last_score == 10, self.score - last_score == 50, invalid_move, hit_ghost, self.score - last_score >= 200, action_t)
             if last_score < self.score:
@@ -345,7 +347,7 @@ class LearningAgent:
 
 if __name__ == '__main__':
     agent = LearningAgent()
-    agent.load_model(name="100-41820", eval=False)
+    # agent.load_model(name="100-41820", eval=False)
     while True:
         agent.train()
         # agent.test()

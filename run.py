@@ -330,7 +330,8 @@ class GameController(object):
         pellets = []
         power_pellets = []
         pacman = []
-        for idx, pellet in enumerate(self.init_pellets):
+        print(len(self.init_pellets.pelletList))
+        for idx, pellet in enumerate(self.init_pellets.pelletList):
             x = pellet.position.x
             y = pellet.position.y
             if pellet.name == 1:
