@@ -22,19 +22,20 @@ matplotlib.use('Agg')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
 BATCH_SIZE = 128
-TARGET_UPDATE = 10
-K_FRAME = 2
 SAVE_EPISODE_FREQ = 100
-
+GAMMA = 0.99
+MOMENTUM = 0.95
+MEMORY_SIZE = 30000
+LEARNING_RATE = 0.0001
 
 Experience = namedtuple('Experience', field_names=[
                         'state', 'action', 'reward', 'done', 'new_state'])
 
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
-is_reversed = (
-    lambda last_action, action: "default" if REVERSED[action] -
-    last_action else "reverse"
-)
+EPS_START = 1.0
+EPS_END = 0.1
+EPS_DECAY = 400000
+MAX_STEPS = 800000
 
 
 class ExperienceReplay:
@@ -69,19 +70,12 @@ class DQN(nn.Module):
 
 class LearningAgent:
     def __init__(self):
-        self.eps_start = 0.9
-        self.eps_end = 0.05
-        self.eps_decay = 1000
-        self.gamma = 0.99
-        self.momentum = 0.95
-        self.replay_size = 30000
-        self.learning_rate = 0.0001
         self.steps = 0
         self.score = 0
         self.target = QNetwork().to(device)
         self.policy = QNetwork().to(device)
         # self.load_model()
-        self.memory = ExperienceReplay(self.replay_size)
+        self.memory = ExperienceReplay(MEMORY_SIZE)
         self.game = GameWrapper()
         self.last_action = 0
         self.buffer = deque(maxlen=4)
@@ -91,8 +85,8 @@ class LearningAgent:
         self.counter = 0
         self.score = 0
         self.episode = 0
-        self.optimizer = optim.SGD(
-            self.policy.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov=True
+        self.optimizer = optim.Adam(
+            self.policy.parameters(), lr=LEARNING_RATE
         )
 
     def calculate_distance(pos1, pos2):
@@ -116,15 +110,15 @@ class LearningAgent:
             reward += 10
         if self.score - prev_score == 50:
             print("power up")
-            reward += 11
+            reward += 13
         if reward > 0:
             progress = self.score // 400
             reward += progress
             return reward
         if self.score - prev_score >= 200:
             return 12
-        # if hit_wall:
-        #     reward -= 10
+        if hit_wall:
+            reward -= 6
         if hit_ghost:
             reward -= 20
         if REVERSED[self.last_action] == action:
@@ -134,7 +128,8 @@ class LearningAgent:
             self.loop_action_counter = 0
         if self.loop_action_counter > 1:
             reward -= 3
-            print("why the fuck")
+            print("what the fuck")
+        reward -= 2
         return reward
 
     def optimize_model(self):
@@ -150,7 +145,7 @@ class LearningAgent:
         dones = torch.tensor(batch.done, dtype=torch.float32).to(device)
         predicted_targets = self.policy(state_batch).gather(1, action_batch)
         target_values = self.target(new_state_batch).detach().max(1)[0]
-        labels = reward_batch + self.gamma * \
+        labels = reward_batch + GAMMA * \
             (1 - dones) * target_values
 
         criterion = torch.nn.SmoothL1Loss()
@@ -161,25 +156,22 @@ class LearningAgent:
         for param in self.policy.parameters():
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-        if self.steps % TARGET_UPDATE == 0:
+        if self.steps % 10 == 0:
             self.target.load_state_dict(self.policy.state_dict())
 
     def select_action(self, state, eval=False):
         if eval:
             with torch.no_grad():
                 q_values = self.policy(state)
-            # Optimal action
             vals = q_values.max(1)[1]
             return vals.view(1, 1)
         sample = random.random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
-            math.exp(-1. * self.steps / self.eps_decay)
-        # display.data.q_values.append(q_values.max(1)[0].item())
+        epsilon = max(EPS_END, EPS_START - (EPS_START - EPS_END)
+                      * self.counter / EPS_DECAY)
         self.steps += 1
-        if sample > eps_threshold:
+        if sample > epsilon:
             with torch.no_grad():
                 q_values = self.policy(state)
-            # Optimal action
             vals = q_values.max(1)[1]
             return vals.view(1, 1)
         else:
@@ -253,8 +245,11 @@ class LearningAgent:
         direction_encoding[direction_index] = 1
 
     def train(self):
+        if self.steps >= MAX_STEPS:
+            return
         self.save_model()
-        obs = self.game.start()
+        if self.episode == 0:
+            obs = self.game.start()
         self.score = 0
         self.episode += 1
         lives = 3
@@ -300,7 +295,7 @@ class LearningAgent:
 
     def test(self, episodes=10):
         if self.episode < episodes:
-            self.load_model(name="400-250134")
+            self.load_model(name="200-73090")
             obs = self.game.start()
             self.episode += 1
             lives = 3
@@ -339,5 +334,5 @@ if __name__ == '__main__':
     # agent.load_model(name="100-49804",)
     agent.rewards = []
     while True:
-        # agent.train()
-        agent.test()
+        agent.train()
+        # agent.test()
