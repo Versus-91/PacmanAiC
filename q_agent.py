@@ -1,5 +1,4 @@
 from math import log
-import math
 import os
 import torch.nn.functional as F
 import torch.optim as optim
@@ -10,7 +9,6 @@ import matplotlib.pyplot as plt
 from collections import deque, namedtuple
 import random
 import time
-import cv2
 import numpy as np
 from cnn import *
 from constants import *
@@ -68,7 +66,7 @@ class DQN(nn.Module):
         return x
 
 
-class LearningAgent:
+class PacmanAgent:
     def __init__(self):
         self.steps = 0
         self.score = 0
@@ -88,13 +86,6 @@ class LearningAgent:
         self.optimizer = optim.Adam(
             self.policy.parameters(), lr=LEARNING_RATE
         )
-
-    def calculate_distance(pos1, pos2):
-        # pos1 and pos2 are tuples representing positions (x, y)
-        x1, y1 = pos1
-        x2, y2 = pos2
-        distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-        return distance
 
     def calculate_reward(self, done, lives, hit_wall, hit_ghost, action, prev_score):
 
@@ -165,11 +156,11 @@ class LearningAgent:
                 q_values = self.policy(state)
             vals = q_values.max(1)[1]
             return vals.view(1, 1)
-        sample = random.random()
+        rand = random.random()
         epsilon = max(EPS_END, EPS_START - (EPS_START - EPS_END)
                       * self.counter / EPS_DECAY)
         self.steps += 1
-        if sample > epsilon:
+        if rand > epsilon:
             with torch.no_grad():
                 q_values = self.policy(state)
             vals = q_values.max(1)[1]
@@ -212,8 +203,9 @@ class LearningAgent:
             torch.save(self.target.state_dict(), os.path.join(
                 os.getcwd() + "\\results", f"target-model-{self.episode}-{self.steps}.pt"))
 
-    def load_model(self, name="200-44483", eval=False):
-        self.steps = 44483
+    def load_model(self, name, eval=False):
+        name_parts = name.split("-")
+        self.steps = int(name_parts[1])
         self.counter = int(self.steps / 2)
         path = os.path.join(
             os.getcwd() + "\\results", f"target-model-{name}.pt")
@@ -248,8 +240,7 @@ class LearningAgent:
         if self.steps >= MAX_STEPS:
             return
         self.save_model()
-        if self.episode == 0:
-            obs = self.game.start()
+        obs = self.game.start()
         self.score = 0
         self.episode += 1
         lives = 3
@@ -295,7 +286,6 @@ class LearningAgent:
 
     def test(self, episodes=10):
         if self.episode < episodes:
-            self.load_model(name="200-73090")
             obs = self.game.start()
             self.episode += 1
             lives = 3
@@ -330,8 +320,8 @@ class LearningAgent:
 
 
 if __name__ == '__main__':
-    agent = LearningAgent()
-    # agent.load_model(name="100-49804",)
+    agent = PacmanAgent()
+    agent.load_model(name="700-347671", eval=True)
     agent.rewards = []
     while True:
         agent.train()
