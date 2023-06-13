@@ -22,7 +22,7 @@ matplotlib.use('Agg')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
 BATCH_SIZE = 128
-TARGET_UPDATE = 20
+TARGET_UPDATE = 10
 K_FRAME = 2
 SAVE_EPISODE_FREQ = 100
 
@@ -74,7 +74,7 @@ class LearningAgent:
         self.eps_decay = 1000
         self.gamma = 0.99
         self.momentum = 0.95
-        self.replay_size = 20000
+        self.replay_size = 30000
         self.learning_rate = 0.0001
         self.steps = 0
         self.score = 0
@@ -87,6 +87,7 @@ class LearningAgent:
         self.buffer = deque(maxlen=4)
         self.last_reward = -1
         self.rewards = []
+        self.loop_action_counter = 0
         self.counter = 0
         self.score = 0
         self.episode = 0
@@ -125,11 +126,15 @@ class LearningAgent:
         # if hit_wall:
         #     reward -= 10
         if hit_ghost:
-            reward -= 30
+            reward -= 20
         if REVERSED[self.last_action] == action:
-            reward -= 1
-        reward -= 4
-
+            print(action, self.last_action)
+            self.loop_action_counter += 1
+        else:
+            self.loop_action_counter = 0
+        if self.loop_action_counter > 1:
+            reward -= 3
+            print("why the fuck")
         return reward
 
     def optimize_model(self):
@@ -142,21 +147,15 @@ class LearningAgent:
         action_batch = torch.cat(batch.action)
         new_state_batch = torch.cat(batch.new_state)
         reward_batch = torch.cat(batch.reward)
-        indices = random.sample(range(len(experiences)), k=BATCH_SIZE)
-        def extract(list_): return [list_[i] for i in indices]
-        done_array = [s for s in batch.done]
-        dones = torch.from_numpy(
-            np.vstack(extract(done_array)).astype(np.uint8)).to(device)
+        dones = torch.tensor(batch.done, dtype=torch.float32).to(device)
         predicted_targets = self.policy(state_batch).gather(1, action_batch)
         target_values = self.target(new_state_batch).detach().max(1)[0]
         labels = reward_batch + self.gamma * \
-            (1 - dones.squeeze(1)) * target_values
+            (1 - dones) * target_values
 
         criterion = torch.nn.SmoothL1Loss()
         loss = criterion(predicted_targets,
                          labels.detach().unsqueeze(1)).to(device)
-        # display.data.losses.append(loss.item())
-        # print("loss", loss.item())
         self.optimizer.zero_grad()
         loss.backward()
         for param in self.policy.parameters():
@@ -164,9 +163,6 @@ class LearningAgent:
         self.optimizer.step()
         if self.steps % TARGET_UPDATE == 0:
             self.target.load_state_dict(self.policy.state_dict())
-        # # Softmax update
-        # for target_param, local_param in zip(target_DQN.parameters(), policy_DQN.parameters()):
-        #     target_param.data.copy_(TAU * local_param.data + (1 - TAU) * target_param.data)
 
     def select_action(self, state, eval=False):
         if eval:
@@ -224,16 +220,21 @@ class LearningAgent:
             torch.save(self.target.state_dict(), os.path.join(
                 os.getcwd() + "\\results", f"target-model-{self.episode}-{self.steps}.pt"))
 
-    def load_model(self, name="200-44483"):
+    def load_model(self, name="200-44483", eval=False):
         self.steps = 44483
+        self.counter = int(self.steps / 2)
         path = os.path.join(
             os.getcwd() + "\\results", f"target-model-{name}.pt")
         self.target.load_state_dict(torch.load(path))
-        self.target.eval()
         path = os.path.join(
             os.getcwd() + "\\results", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
-        self.policy.eval()
+        if eval:
+            self.target.eval()
+            self.policy.eval()
+        else:
+            self.target.train()
+            self.policy.train()
 
     def map_directions(self):
         num_directions = 4
@@ -281,7 +282,6 @@ class LearningAgent:
             next_state = self.process_state(obs)
             reward_ = self.calculate_reward(
                 done, lives, invalid_move, hit_ghost, action_t, last_score)
-            print(reward_)
             last_score = self.score
             self.memory.append(state, action,
                                torch.tensor([reward_], device=device), next_state, done)
@@ -292,7 +292,7 @@ class LearningAgent:
             if done:
                 # assert reward_sum == reward
                 self.rewards.append(self.score)
-                self.plot_rewards()
+                self.plot_rewards(avg=10)
                 time.sleep(1)
                 self.game.restart()
                 torch.cuda.empty_cache()
@@ -300,7 +300,7 @@ class LearningAgent:
 
     def test(self, episodes=10):
         if self.episode < episodes:
-            self.load_model(name="1000-387631")
+            self.load_model(name="400-250134")
             obs = self.game.start()
             self.episode += 1
             lives = 3
@@ -336,7 +336,8 @@ class LearningAgent:
 
 if __name__ == '__main__':
     agent = LearningAgent()
+    #agent.load_model(name="100-49804",)
     agent.rewards = []
     while True:
-        # agent.train()
+        #agent.train()
         agent.test()
