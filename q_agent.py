@@ -15,7 +15,8 @@ from constants import *
 from game import GameWrapper
 import random
 import matplotlib
-from time import sleep
+
+from gamestate import GameState
 matplotlib.use('Agg')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
@@ -87,7 +88,7 @@ class PacmanAgent:
             self.policy.parameters(), lr=LEARNING_RATE
         )
 
-    def calculate_reward(self, done, lives, hit_wall, hit_ghost, action, prev_score):
+    def calculate_reward(self, done, lives, hit_ghost, action, prev_score,info:GameState):
 
         reward = 0
         if done:
@@ -103,17 +104,16 @@ class PacmanAgent:
             print("power up")
             reward += 13
         if reward > 0:
-            progress = self.score // 400
+            progress =  (info.collected_pellets / info.total_pellets) * 7
             reward += progress
             return reward
         if self.score - prev_score >= 200:
-            return 12
-        if hit_wall:
+            return 15
+        if info.invalid_move:
             reward -= 6
         if hit_ghost:
             reward -= 20
         if REVERSED[self.last_action] == action:
-            print(action, self.last_action)
             self.loop_action_counter += 1
         else:
             self.loop_action_counter = 0
@@ -205,6 +205,7 @@ class PacmanAgent:
 
     def load_model(self, name, eval=False):
         name_parts = name.split("-")
+        self.episode = int(name_parts[0])
         self.steps = int(name_parts[1])
         self.counter = int(self.steps / 2)
         path = os.path.join(
@@ -220,62 +221,44 @@ class PacmanAgent:
             self.target.train()
             self.policy.train()
 
-    def map_directions(self):
-        num_directions = 4
-
-        current_direction = "up"
-
-        direction_mapping = {
-            "up": 0,
-            "down": 1,
-            "left": 2,
-            "right": 3
-        }
-
-        direction_encoding = np.zeros(num_directions)
-        direction_index = direction_mapping[current_direction]
-        direction_encoding[direction_index] = 1
-
     def train(self):
         if self.steps >= MAX_STEPS:
             return
         self.save_model()
         obs = self.game.start()
-        self.score = 0
         self.episode += 1
-        lives = 3
         random_action = random.choice([0, 1, 2, 3])
-        obs, self.score, done, remaining_lives, invalid_move = self.game.step(
+        obs, self.score, done, info = self.game.step(
             random_action)
         state = self.process_state(obs)
         last_score = 0
-        self.score = 0
+        lives = 3
         while True:
             action = self.select_action(state)
             action_t = action.item()
             for i in range(3):
                 if not done:
-                    obs, self.score, done, remaining_lives, invalid_move = self.game.step(
+                    obs, self.score, done, info = self.game.step(
                         action_t)
-                    if lives != remaining_lives:
+                    if lives != info.lives:
                         break
                 else:
                     break
             hit_ghost = False
-            if lives != remaining_lives:
+            if lives != info.lives:
                 hit_ghost = True
                 lives -= 1
             next_state = self.process_state(obs)
-            reward_ = self.calculate_reward(
-                done, lives, invalid_move, hit_ghost, action_t, last_score)
+            reward_ = self.calculate_reward(done, lives, hit_ghost, action_t, last_score, info)
             last_score = self.score
-            self.memory.append(state, action,
-                               torch.tensor([reward_], device=device), next_state, done)
+            self.memory.append(state, action,torch.tensor([reward_], device=device), next_state, done)
             state = next_state
             if self.steps % 2 == 0:
                 self.optimize_model()
             self.last_action = action_t
             if done:
+                epsilon = max(EPS_END, EPS_START - (EPS_START - EPS_END)* self.counter / EPS_DECAY)
+                print("epsilon",epsilon,"reward",self.score)
                 # assert reward_sum == reward
                 self.rewards.append(self.score)
                 self.plot_rewards(avg=10)
@@ -288,25 +271,19 @@ class PacmanAgent:
         if self.episode < episodes:
             obs = self.game.start()
             self.episode += 1
-            lives = 3
             random_action = random.choice([0, 1, 2, 3])
-            obs, reward, done, remaining_lives, invalid_move = self.game.step(
+            obs, reward, done, _ = self.game.step(
                 random_action)
             state = self.process_state(obs)
             while True:
                 action = self.select_action(state, eval=True)
                 action_t = action.item()
-                print("action", action_t)
                 for i in range(3):
                     if not done:
-                        obs, reward, done, remaining_lives, invalid_move = self.game.step(
+                        obs, reward, done, _ = self.game.step(
                             action_t)
-                        if lives != remaining_lives:
-                            break
                     else:
                         break
-                if lives != remaining_lives:
-                    lives -= 1
                 state = self.process_state(obs)
                 if done:
                     self.rewards.append(reward)
@@ -321,7 +298,7 @@ class PacmanAgent:
 
 if __name__ == '__main__':
     agent = PacmanAgent()
-    agent.load_model(name="700-347671", eval=True)
+    #agent.load_model(name="700-347671", eval=True)
     agent.rewards = []
     while True:
         agent.train()
