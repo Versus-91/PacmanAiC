@@ -173,7 +173,7 @@ class LearningAgent:
             return vals.view(1, 1)
         sample = random.random()
         eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
-            math.exp(-1. * self.counter / self.eps_decay)
+            math.exp(-1. * self.steps / self.eps_decay)
         # display.data.q_values.append(q_values.max(1)[0].item())
         self.steps += 1
         if sample > eps_threshold:
@@ -336,8 +336,8 @@ class LearningAgent:
 
 if __name__ == '__main__':
     agent = LearningAgent()
-    #agent.load_model(name="100-49804",)
+    # agent.load_model(name="100-49804",)
     agent.rewards = []
     while True:
-        #agent.train()
+        # agent.train()
         agent.test()
