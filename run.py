@@ -240,15 +240,15 @@ class GameController(object):
     def direction_state(self, direction):
         match direction:
             case 0:
-                return 1
-            case 1:
-                return 2
-            case -1:
-                return 3
-            case 2:
                 return 4
-            case -2:
+            case 1:
                 return 5
+            case -1:
+                return 6
+            case 2:
+                return 7
+            case -2:
+                return 8
 
     def get_state(self):
         raw_maze_data = []
@@ -286,7 +286,7 @@ class GameController(object):
             elif ghost[1].mode.current is FREIGHT:
                 ghosts[y][x] = self.direction_state(ghost[1].direction)
 
-        return [walls[7:28, :], pacman[7:28, :], ghosts[7:28, :], pellets[7:28, :]]
+        return [walls[7:28, :], pellets[7:28, :], pacman[7:28, :], ghosts[7:28, :]]
 
     def checkPelletEvents(self):
         pellet = self.pacman.eatPellets(self.pellets.pelletList)

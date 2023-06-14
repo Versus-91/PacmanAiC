@@ -108,7 +108,7 @@ class PacmanAgent:
             reward += progress
             return reward
         if self.score - prev_score >= 200:
-            return 15
+            return 16
         if info.invalid_move:
             reward -= 6
         if hit_ghost:
@@ -261,7 +261,7 @@ class PacmanAgent:
                 print("epsilon",epsilon,"reward",self.score)
                 # assert reward_sum == reward
                 self.rewards.append(self.score)
-                self.plot_rewards(avg=10)
+                self.plot_rewards(avg=50)
                 time.sleep(1)
                 self.game.restart()
                 torch.cuda.empty_cache()
