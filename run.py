@@ -170,7 +170,8 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        self.get_state()
+        state = self.get_state_vector()
+        print("next")
 
     def perform_action(self, action):
         state = None
@@ -286,32 +287,32 @@ class GameController(object):
                 ghosts[y][x] = self.direction_state(ghost[1].direction)
 
         return [walls[7:28, :], pellets[7:28, :], pacman[7:28, :], ghosts[7:28, :]]
+    
+    
     def get_state_vector(self):
         state = []
-        pellets = []
-        power_pellets = []
-        ghosts = []
-        pacman=[]
         for idx, pellet in enumerate(self.pellets.pelletList):
-            x = int(pellet.position.x / 16)
-            y = int(pellet.position.y / 16)
+            x = pellet.position.x / 16
+            y = pellet.position.y / 16
             if pellet.name == 1:
-                pellets[y][x] = 2
+                state.append(x)
+                state.append(y)
             else:
-                pellets[y][x] = 3
-        x = int(round(self.pacman.position.x / 16))
-        y = int(round(self.pacman.position.y / 16))
-        pacman[y][x] = self.direction_state(self.pacman.direction)
-        assert walls[y][x] != 1
+                state.append(x)
+                state.append(y)
+        x = self.pacman.position.x / 16
+        y = self.pacman.position.y / 16
+        state.append(x,)
+        state.append(y)
+        state.append(self.direction_state(self.pacman.direction))
+        
         for ghost in enumerate(self.ghosts):
-            x = int(round(ghost[1].position.x / 16))
-            y = int(round(ghost[1].position.y / 16))
-            if ghost[1].mode.current is not FREIGHT:
-                ghosts[y][x] = -1 * \
-                    self.direction_state(ghost[1].direction)
-            elif ghost[1].mode.current is FREIGHT:
-                ghosts[y][x] = self.direction_state(ghost[1].direction)
-
+            x = ghost[1].position.x / 16
+            y = ghost[1].position.y / 16
+            state.append(x)
+            state.append(y)
+            state.append(ghost[1].mode.current)
+            
         return state
     def checkPelletEvents(self):
         pellet = self.pacman.eatPellets(self.pellets.pelletList)

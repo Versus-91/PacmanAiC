@@ -73,8 +73,10 @@ class PacmanAgent:
     def __init__(self):
         self.steps = 0
         self.score = 0
-        self.target = QNetwork().to(device)
-        self.policy = QNetwork().to(device)
+        # self.target = QNetwork().to(device)
+        # self.policy = QNetwork().to(device)
+        self.target = DQN().to(device)
+        self.policy = DQN().to(device)
         # self.load_model()
         self.memory = ExperienceReplay(MEMORY_SIZE)
         self.game = GameWrapper()
@@ -86,7 +88,7 @@ class PacmanAgent:
         self.score = 0
         self.episode = 0
         self.optimizer = optim.Adam(self.policy.parameters(), lr=LEARNING_RATE)
-        self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=1.5)
+        #self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=1.5)
 
     def calculate_reward(
         self, done, lives, hit_ghost, action, prev_score, info: GameState
@@ -262,8 +264,8 @@ class PacmanAgent:
             state = next_state
             self.evaluate()
             self.last_action = action_t
-            if self.steps % 15000 == 0:
-                self.scheduler.step()
+            # if self.steps % 15000 == 0:
+            #     self.scheduler.step()
             if done:
                 current_lr = self.optimizer.param_groups[0]["lr"]
                 epsilon = max(
