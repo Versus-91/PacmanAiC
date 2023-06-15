@@ -7,7 +7,7 @@ from constants import *
 from gamestate import GameState
 from pacman import Pacman
 from nodes import NodeGroup
-from pellets import PelletGroup
+from pellets import Pellet, PelletGroup
 from ghosts import GhostGroup
 from fruit import Fruit
 from pauser import Pause
@@ -85,6 +85,7 @@ class GameController(object):
         self.pacman = Pacman(self.nodes.getNodeFromTiles(
             *self.mazedata.obj.pacmanStart))
         self.pellets = PelletGroup(self.mazedata.obj.name+".txt")
+        self.starting_pellets = PelletGroup(self.mazedata.obj.name+".txt")
         self.eatenPellets = []
         self.ghosts = GhostGroup(self.nodes.getStartTempNode(), self.pacman)
 
@@ -178,7 +179,7 @@ class GameController(object):
         invalid_move = False
         if not self.pacman.validDirection(action):
             invalid_move = True
-        dt = self.clock.tick(60) / 1000.0
+        dt = self.clock.tick(120) / 1000.0
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -208,7 +209,7 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        state = self.get_state()
+        state = self.get_state_vector()
         info = GameState()
         info.lives = self.lives
         info.invalid_move = invalid_move
@@ -288,18 +289,25 @@ class GameController(object):
 
         return [walls[7:28, :], pellets[7:28, :], pacman[7:28, :], ghosts[7:28, :]]
     
-    
+    def find_pellet(self,pellet:Pellet)-> bool:
+        for i,item in enumerate(self.pellets.pelletList):
+            if item.position.x == pellet.position.x and item.position.y == pellet.position.y:
+                return True
+        return False
     def get_state_vector(self):
         state = []
-        for idx, pellet in enumerate(self.pellets.pelletList):
+        for idx, pellet in enumerate(self.starting_pellets.pelletList):
             x = pellet.position.x / 16
             y = pellet.position.y / 16
-            if pellet.name == 1:
+            if(self.find_pellet(pellet)):
                 state.append(x)
                 state.append(y)
+                state.append(pellet.name)
             else:
-                state.append(x)
-                state.append(y)
+                state.append(-1)
+                state.append(-1)
+                state.append(pellet.name)
+
         x = self.pacman.position.x / 16
         y = self.pacman.position.y / 16
         state.append(x,)
@@ -311,6 +319,7 @@ class GameController(object):
             y = ghost[1].position.y / 16
             state.append(x)
             state.append(y)
+            state.append(self.direction_state(ghost[1].direction))
             state.append(ghost[1].mode.current)
             
         return state

@@ -57,7 +57,9 @@ class DQN(nn.Module):
     def __init__(self, input_shape, num_actions):
         super(DQN, self).__init__()
         self.fc = nn.Sequential(
-            nn.Linear(input_shape, 128),
+            nn.Linear(input_shape, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
@@ -75,8 +77,8 @@ class PacmanAgent:
         self.score = 0
         # self.target = QNetwork().to(device)
         # self.policy = QNetwork().to(device)
-        self.target = DQN().to(device)
-        self.policy = DQN().to(device)
+        self.target = DQN(input_shape=451,num_actions=4).to(device)
+        self.policy = DQN(input_shape=451,num_actions=4).to(device)
         # self.load_model()
         self.memory = ExperienceReplay(MEMORY_SIZE)
         self.game = GameWrapper()
@@ -88,7 +90,7 @@ class PacmanAgent:
         self.score = 0
         self.episode = 0
         self.optimizer = optim.Adam(self.policy.parameters(), lr=LEARNING_RATE)
-        #self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=1.5)
+        self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=1.5)
 
     def calculate_reward(
         self, done, lives, hit_ghost, action, prev_score, info: GameState
@@ -96,6 +98,7 @@ class PacmanAgent:
         reward = 0
         if done:
             if lives > 0:
+                
                 print("won")
                 reward = 30
             else:
@@ -105,7 +108,7 @@ class PacmanAgent:
             reward += 10
         if self.score - prev_score == 50:
             print("power up")
-            reward += 13
+            reward += 18
         if reward > 0:
             progress = (info.collected_pellets / info.total_pellets) * 7
             reward += progress
@@ -131,9 +134,9 @@ class PacmanAgent:
             return
         experiences = self.memory.sample(BATCH_SIZE)
         batch = Experience(*zip(*experiences))
-        state_batch = torch.cat(batch.state)
+        state_batch = torch.stack(batch.state)
         action_batch = torch.cat(batch.action)
-        new_state_batch = torch.cat(batch.new_state)
+        new_state_batch = torch.stack(batch.new_state)
         reward_batch = torch.cat(batch.reward)
         dones = torch.tensor(batch.done, dtype=torch.float32).to(device)
         predicted_targets = self.policy(state_batch).gather(1, action_batch)
@@ -163,9 +166,8 @@ class PacmanAgent:
         self.steps += 1
         if rand > epsilon:
             with torch.no_grad():
-                q_values = self.policy(state)
-            vals = q_values.max(1)[1]
-            return vals.view(1, 1)
+                outputs = self.policy(state)
+            return torch.argmax(outputs).view(1,1)
         else:
             # Random action
             action = random.randrange(N_ACTIONS)
@@ -230,42 +232,47 @@ class PacmanAgent:
 
     def train(self):
         if self.steps >= MAX_STEPS:
-            return
+            self.save_model()
+            exit()
         self.save_model()
         obs = self.game.start()
         self.episode += 1
         random_action = random.choice([0, 1, 2, 3])
         obs, self.score, done, info = self.game.step(random_action)
-        state = self.process_state(obs)
+        #state = self.process_state(obs)
+        state = torch.tensor(obs).float().to(device)
         last_score = 0
         lives = 3
         while True:
             action = self.act(state)
             action_t = action.item()
-            for i in range(3):
+            for i in range(6):
                 if not done:
                     obs, self.score, done, info = self.game.step(action_t)
-                    if lives != info.lives:
-                        break
+                    if lives != info.lives or self.score - last_score != 0:
+                       break
                 else:
                     break
             hit_ghost = False
             if lives != info.lives:
                 hit_ghost = True
                 lives -= 1
-            next_state = self.process_state(obs)
+            next_state = torch.tensor(obs).float().to(device)
+                
+            #next_state = self.process_state(obs)
+            
             reward_ = self.calculate_reward(
                 done, lives, hit_ghost, action_t, last_score, info
             )
             last_score = self.score
             self.memory.append(
-                state, action, torch.tensor([reward_], device=device), next_state, done
-            )
+                    state,action , torch.tensor([reward_], device=device), next_state, done
+                )
             state = next_state
             self.evaluate()
             self.last_action = action_t
-            # if self.steps % 15000 == 0:
-            #     self.scheduler.step()
+            if self.steps % 15000 == 0:
+                self.scheduler.step()
             if done:
                 current_lr = self.optimizer.param_groups[0]["lr"]
                 epsilon = max(
@@ -274,7 +281,7 @@ class PacmanAgent:
                 )
                 print(
                     "epsilon",
-                    epsilon,
+                    round(epsilon,3),
                     "reward",
                     self.score,
                     "learning_rate",
@@ -317,8 +324,8 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    agent.load_model(name="300-121137", eval=True)
-    agent.rewards = []
+    #agent.load_model(name="300-121137", eval=True)
+    #agent.rewards = []
     while True:
-        # agent.train()
-        agent.test()
+        agent.train()
+        #agent.test()
