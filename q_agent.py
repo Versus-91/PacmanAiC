@@ -212,9 +212,6 @@ class PacmanAgent:
             )
 
     def load_model(self, name, eval=False):
-        name_parts = name.split("-")
-        self.episode = int(name_parts[0])
-        self.steps = int(name_parts[1])
         path = os.path.join(os.getcwd() + "\\results", f"target-model-{name}.pt")
         self.target.load_state_dict(torch.load(path))
         path = os.path.join(os.getcwd() + "\\results", f"policy-model-{name}.pt")
@@ -223,6 +220,9 @@ class PacmanAgent:
             self.target.eval()
             self.policy.eval()
         else:
+            name_parts = name.split("-")
+            self.episode = int(name_parts[0])
+            self.steps = int(name_parts[1])
             self.target.train()
             self.policy.train()
 
@@ -294,9 +294,9 @@ class PacmanAgent:
             obs, reward, done, _ = self.game.step(random_action)
             state = self.process_state(obs)
             while True:
-                action = self.select_action(state, eval=True)
+                action = self.act(state, eval=True)
                 action_t = action.item()
-                for i in range(3):
+                for i in range(1):
                     if not done:
                         obs, reward, done, _ = self.game.step(action_t)
                     else:
@@ -315,8 +315,8 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    # agent.load_model(name="700-347671", eval=True)
+    agent.load_model(name="300-121137", eval=True)
     agent.rewards = []
     while True:
-        agent.train()
-        # agent.test()
+        # agent.train()
+        agent.test()
