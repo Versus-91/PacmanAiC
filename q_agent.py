@@ -15,7 +15,7 @@ from constants import *
 from game import GameWrapper
 import random
 import matplotlib
-
+import torch.optim.lr_scheduler as lr_scheduler
 from gamestate import GameState
 
 matplotlib.use("Agg")
@@ -35,8 +35,8 @@ Experience = namedtuple(
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
 EPS_START = 1.0
 EPS_END = 0.1
-EPS_DECAY = 400000
-MAX_STEPS = 800000
+EPS_DECAY = 150000
+MAX_STEPS = 150000
 
 
 class ExperienceReplay:
@@ -83,10 +83,10 @@ class PacmanAgent:
         self.last_reward = -1
         self.rewards = []
         self.loop_action_counter = 0
-        self.counter = 0
         self.score = 0
         self.episode = 0
         self.optimizer = optim.Adam(self.policy.parameters(), lr=LEARNING_RATE)
+        self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=1.5)
 
     def calculate_reward(
         self, done, lives, hit_ghost, action, prev_score, info: GameState
@@ -124,10 +124,9 @@ class PacmanAgent:
         reward -= 2
         return reward
 
-    def optimize_model(self):
+    def evaluate(self):
         if len(self.memory) < BATCH_SIZE:
             return
-        self.counter += 1
         experiences = self.memory.sample(BATCH_SIZE)
         batch = Experience(*zip(*experiences))
         state_batch = torch.cat(batch.state)
@@ -143,13 +142,13 @@ class PacmanAgent:
         loss = criterion(predicted_targets, labels.detach().unsqueeze(1)).to(device)
         self.optimizer.zero_grad()
         loss.backward()
-        for param in self.policy.parameters():
-            param.grad.data.clamp_(-1, 1)
+        # for param in self.policy.parameters():
+        #     param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
         if self.steps % 10 == 0:
             self.target.load_state_dict(self.policy.state_dict())
 
-    def select_action(self, state, eval=False):
+    def act(self, state, eval=False):
         if eval:
             with torch.no_grad():
                 q_values = self.policy(state)
@@ -157,7 +156,7 @@ class PacmanAgent:
             return vals.view(1, 1)
         rand = random.random()
         epsilon = max(
-            EPS_END, EPS_START - (EPS_START - EPS_END) * self.counter / EPS_DECAY
+            EPS_END, EPS_START - (EPS_START - EPS_END) * self.steps / EPS_DECAY
         )
         self.steps += 1
         if rand > epsilon:
@@ -216,7 +215,6 @@ class PacmanAgent:
         name_parts = name.split("-")
         self.episode = int(name_parts[0])
         self.steps = int(name_parts[1])
-        self.counter = int(self.steps / 2)
         path = os.path.join(os.getcwd() + "\\results", f"target-model-{name}.pt")
         self.target.load_state_dict(torch.load(path))
         path = os.path.join(os.getcwd() + "\\results", f"policy-model-{name}.pt")
@@ -240,7 +238,7 @@ class PacmanAgent:
         last_score = 0
         lives = 3
         while True:
-            action = self.select_action(state)
+            action = self.act(state)
             action_t = action.item()
             for i in range(3):
                 if not done:
@@ -262,15 +260,24 @@ class PacmanAgent:
                 state, action, torch.tensor([reward_], device=device), next_state, done
             )
             state = next_state
-            if self.steps % 2 == 0:
-                self.optimize_model()
+            self.evaluate()
             self.last_action = action_t
+            if self.steps % 15000 == 0:
+                self.scheduler.step()
             if done:
+                current_lr = self.optimizer.param_groups[0]["lr"]
                 epsilon = max(
                     EPS_END,
-                    EPS_START - (EPS_START - EPS_END) * self.counter / EPS_DECAY,
+                    EPS_START - (EPS_START - EPS_END) * self.steps / EPS_DECAY,
                 )
-                print("epsilon", epsilon, "reward", self.score)
+                print(
+                    "epsilon",
+                    epsilon,
+                    "reward",
+                    self.score,
+                    "learning_rate",
+                    current_lr,
+                )
                 # assert reward_sum == reward
                 self.rewards.append(self.score)
                 self.plot_rewards(avg=50)
