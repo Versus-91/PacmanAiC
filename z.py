@@ -54,7 +54,7 @@ import random
 
 EPS_START = 1.0
 EPS_END = 0.1
-EPS_DECAY = 400000  # Adjust the decay rate as needed
+EPS_DECAY = 100000  # Adjust the decay rate as needed
 
 
 def plot_epsilon_decay(eps_start, eps_end, eps_decay, max_steps):
@@ -75,7 +75,7 @@ def plot_epsilon_decay(eps_start, eps_end, eps_decay, max_steps):
 eps_start = EPS_START
 eps_end = EPS_END
 eps_decay = EPS_DECAY
-max_steps = 16000
+max_steps = 100000
 
 # Call the plot_epsilon_decay function with the desired parameters
 plot_epsilon_decay(eps_start, eps_end, eps_decay, max_steps)
