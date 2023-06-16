@@ -285,7 +285,7 @@ class GameController(object):
         y = int(round(self.pacman.position.y / 16))
         # assert game[y][x] != 1
         pacman[y][x] = self.direction_state(self.pacman.direction)
-        assert game[y][x] != game_states.get('wall')
+        assert walls[y][x] != game_states.get('wall')
         x = int(round(self.ghosts.blinky.position.x / 16))
         y = int(round(self.ghosts.blinky.position.y / 16))
         # self.check_ghost_pos(game[y][x], x, y)
