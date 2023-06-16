@@ -208,10 +208,10 @@ class PacmanAgent:
         self.steps = int(name_parts[1])
         self.counter = int(self.steps / 2)
         path = os.path.join(
-            os.getcwd() + "\\results", f"target-model-{name}.pt")
+            os.getcwd() + "\\results\\r1", f"target-model-{name}.pt")
         self.target.load_state_dict(torch.load(path))
         path = os.path.join(
-            os.getcwd() + "\\results", f"policy-model-{name}.pt")
+            os.getcwd() + "\\results\\r1", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
         if eval:
             self.target.eval()
@@ -321,8 +321,8 @@ class PacmanAgent:
 
 if __name__ == '__main__':
     agent = PacmanAgent()
-    agent.load_model(name="700-347671", eval=True)
+    agent.load_model(name="400-250134", eval=True)
     agent.rewards = []
     while True:
-        agent.train()
-        # agent.test()
+        # agent.train()
+        agent.test()
