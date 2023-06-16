@@ -1,3 +1,4 @@
+import math
 import cv2
 from matplotlib import pyplot as plt
 import numpy as np
@@ -15,6 +16,7 @@ from text import TextGroup
 from sprites import LifeSprites
 from sprites import MazeSprites
 from mazedata import MazeData
+from vector import Vector2
 
 game_states = {
     'pallet': 1,
@@ -62,6 +64,8 @@ class GameController(object):
         self.mazedata = MazeData()
         self.raw_maze_data = []
         self.state =[]
+        self.pacman_prev = Vector2()
+        self.dist = 0
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -180,7 +184,7 @@ class GameController(object):
         invalid_move = False
         if not self.pacman.validDirection(action):
             invalid_move = True
-        dt = self.clock.tick(120) / 1000.0
+        dt = self.clock.tick(60) / 1000.0
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -210,7 +214,7 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        state = self.get_state_vector()
+        state = self.get_frame()
         info = GameState()
         info.lives = self.lives
         info.invalid_move = invalid_move
@@ -331,14 +335,19 @@ class GameController(object):
             x = int(round(ghost[1].position.x / 16))
             y = int(round(ghost[1].position.y / 16))
             if ghost[1].mode.current is not FREIGHT:
-                self.state[y][x] = 6
-            elif ghost[1].mode.current is FREIGHT:
                 self.state[y][x] = -6
-        # if (self.pacman.position.x / 16).is_integer() and (self.pacman.position.x / 16).is_integer():
-        #     print("whole number")
-        # else:
-        #     print(self.pacman.position.x / 16)
-        return self.state
+            elif ghost[1].mode.current is FREIGHT:
+                self.state[y][x] = 6
+        if(self.pacman_prev == Vector2(0,0)):
+            self.pacman_prev = self.pacman.position
+        x = self.pacman.position.x
+        y = self.pacman.position.y
+        #dist = math.sqrt((self.pacman_prev.x - x)**2 + (self.pacman_prev.y - x)**2)
+        # if abs(self.pacman_prev.x - x) >= 16 or abs(self.pacman_prev.y - y) >= 16:
+        #     self.pacman_prev = self.pacman.position
+        #     print("move",self.pacman.position)
+        
+        return self.state[7:28, :]
     
     def find_pellet(self,pellet:Pellet)-> bool:
         for i,item in enumerate(self.pellets.pelletList):
@@ -377,7 +386,6 @@ class GameController(object):
     def checkPelletEvents(self):
         pellet = self.pacman.eatPellets(self.pellets.pelletList)
         if pellet:
-            print("X",self.pacman.position.x,"y",self.pacman.position.y)
             self.eatenPellets.append(pellet)
             self.pellets.numEaten += 1
             self.updateScore(pellet.points)

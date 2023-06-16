@@ -134,9 +134,9 @@ class PacmanAgent:
             return
         experiences = self.memory.sample(BATCH_SIZE)
         batch = Experience(*zip(*experiences))
-        state_batch = torch.stack(batch.state)
+        state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
-        new_state_batch = torch.stack(batch.new_state)
+        new_state_batch = torch.cat(batch.new_state)
         reward_batch = torch.cat(batch.reward)
         dones = torch.tensor(batch.done, dtype=torch.float32).to(device)
         predicted_targets = self.policy(state_batch).gather(1, action_batch)
