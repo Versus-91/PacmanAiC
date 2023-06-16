@@ -257,13 +257,12 @@ class GameController(object):
         pacman = np.zeros(maze_data.shape)
         # powerpellets = np.zeros(maze_data.shape)
         walls = np.zeros(maze_data.shape)
-        game = np.zeros(maze_data.shape)
         for idx, values in enumerate(maze_data):
             for id, value in enumerate(values):
                 # if value == '.' or value == 'p' or value == '+':
                 # pallets.push((idx, id))
                 if value in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '=', 'X']:
-                    game[idx][id] = 1
+                    walls[idx][id] = 1
                 # if value == 'n' or value == '|' or value == '-' or value == '.' or value == 'p' or value == '+':
                 #     game[idx][id] = 1
         # for idx, values in enumerate(self.eatenPellets):
