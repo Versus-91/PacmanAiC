@@ -60,6 +60,8 @@ class GameController(object):
         self.fruitCaptured = []
         self.fruitNode = None
         self.mazedata = MazeData()
+        self.raw_maze_data = []
+        self.state =[]
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -171,8 +173,7 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        state = self.get_state_vector()
-        print("next")
+        state = self.get_frame()
 
     def perform_action(self, action):
         state = None
@@ -294,6 +295,56 @@ class GameController(object):
             if item.position.x == pellet.position.x and item.position.y == pellet.position.y:
                 return True
         return False
+    def get_frame(self):
+        if len(self.raw_maze_data) == 0:
+            raw_maze_data = []
+            with open('maze1.txt', 'r') as f:
+                for line in f:
+                    raw_maze_data.append(line.split())
+            self.raw_maze_data = np.array(raw_maze_data)
+            self.state = np.zeros(self.raw_maze_data.shape)
+            for idx, values in enumerate(self.raw_maze_data):
+                for id, value in enumerate(values):
+                    if value in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '=', 'X']:
+                        self.state[idx][id] = 1
+                    elif value in ["-","n","|",]:
+                        self.state[idx][id] = 2
+        for idx, pellet in enumerate(self.eatenPellets):
+            x = int(pellet.position.x / 16)
+            y = int(pellet.position.y / 16)
+            if pellet.name == 1:
+                self.state[y][x] = 2
+            else:
+                self.state[y][x] = 2
+        for idx, pellet in enumerate(self.pellets.pelletList):
+            x = int(pellet.position.x / 16)
+            y = int(pellet.position.y / 16)
+            if pellet.name == 1:
+                self.state[y][x] = 3
+            else:
+                self.state[y][x] = 4
+        x = int(round(self.pacman.position.x / 16))
+        y = int(round(self.pacman.position.y / 16))
+        self.state[y][x] = 5
+        assert self.state[y][x] != 1
+        for ghost in enumerate(self.ghosts):
+            x = int(round(ghost[1].position.x / 16))
+            y = int(round(ghost[1].position.y / 16))
+            if ghost[1].mode.current is not FREIGHT:
+                self.state[y][x] = 6
+            elif ghost[1].mode.current is FREIGHT:
+                self.state[y][x] = -6
+        # if (self.pacman.position.x / 16).is_integer() and (self.pacman.position.x / 16).is_integer():
+        #     print("whole number")
+        # else:
+        #     print(self.pacman.position.x / 16)
+        return self.state
+    
+    def find_pellet(self,pellet:Pellet)-> bool:
+        for i,item in enumerate(self.pellets.pelletList):
+            if item.position.x == pellet.position.x and item.position.y == pellet.position.y:
+                return True
+        return False
     def get_state_vector(self):
         state = []
         for idx, pellet in enumerate(self.starting_pellets.pelletList):
@@ -326,6 +377,7 @@ class GameController(object):
     def checkPelletEvents(self):
         pellet = self.pacman.eatPellets(self.pellets.pelletList)
         if pellet:
+            print("X",self.pacman.position.x,"y",self.pacman.position.y)
             self.eatenPellets.append(pellet)
             self.pellets.numEaten += 1
             self.updateScore(pellet.points)
