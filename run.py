@@ -214,7 +214,7 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        state = self.get_frame()
+        state = self.get_state_vector()
         info = GameState()
         info.lives = self.lives
         info.invalid_move = invalid_move
@@ -356,6 +356,9 @@ class GameController(object):
         return False
     def get_state_vector(self):
         state = []
+        state.append(self.lives)
+        state.append(len(self.starting_pellets.pelletList))
+        state.append(len(self.pellets.powerpellets))
         for idx, pellet in enumerate(self.starting_pellets.pelletList):
             x = pellet.position.x / 16
             y = pellet.position.y / 16
@@ -368,15 +371,15 @@ class GameController(object):
                 state.append(-1)
                 state.append(pellet.name)
 
-        x = self.pacman.position.x / 16
-        y = self.pacman.position.y / 16
+        x = self.pacman.position.x
+        y = self.pacman.position.y
         state.append(x,)
         state.append(y)
         state.append(self.direction_state(self.pacman.direction))
         
         for ghost in enumerate(self.ghosts):
-            x = ghost[1].position.x / 16
-            y = ghost[1].position.y / 16
+            x = ghost[1].position.x
+            y = ghost[1].position.y
             state.append(x)
             state.append(y)
             state.append(self.direction_state(ghost[1].direction))
