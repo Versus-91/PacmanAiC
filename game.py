@@ -18,6 +18,9 @@ class GameWrapper:
     def restart(self):
         self.controller.restartGame()
 
+    def stop(self):
+        self.controller.quit()
+
     def step(self, action):
         assert action >= 0 and action < 4
         if action == 0:
@@ -31,7 +34,7 @@ class GameWrapper:
         else:
             print("Invalid action", action)
         data = self.controller.perform_action(action)
-        return (data[0], data[1], data[2], data[3], data[4], data[5])
+        return (data[0], data[1], data[2], data[3])
 
     def pacman_position(self):
         return self.controller.pacman.position
