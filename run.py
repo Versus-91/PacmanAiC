@@ -263,7 +263,7 @@ class GameController(object):
                 # if value == '.' or value == 'p' or value == '+':
                 # pallets.push((idx, id))
                 if value in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '=', 'X']:
-                    game[idx][id] = 1
+                    walls[idx][id] = 1
                 # if value == 'n' or value == '|' or value == '-' or value == '.' or value == 'p' or value == '+':
                 #     game[idx][id] = 1
         # for idx, values in enumerate(self.eatenPellets):

@@ -71,12 +71,13 @@ class LearningAgent:
     def __init__(self):
         self.eps_start = 0.9
         self.eps_end = 0.05
-        self.eps_decay = 1000
+        self.eps_decay = 100000
         self.gamma = 0.99
         self.momentum = 0.95
         self.replay_size = 30000
         self.learning_rate = 0.0001
         self.steps = 0
+        self.step_limit = 250000
         self.score = 0
         self.target = QNetwork().to(device)
         self.policy = QNetwork().to(device)
@@ -137,7 +138,7 @@ class LearningAgent:
             print("why the fuck")
         return reward
 
-    def optimize_model(self):
+    def evaluate(self):
         if len(self.memory) < BATCH_SIZE:
             return
         self.counter += 1
@@ -164,7 +165,7 @@ class LearningAgent:
         if self.steps % TARGET_UPDATE == 0:
             self.target.load_state_dict(self.policy.state_dict())
 
-    def select_action(self, state, eval=False):
+    def act(self, state, eval=False):
         if eval:
             with torch.no_grad():
                 q_values = self.policy(state)
@@ -174,7 +175,6 @@ class LearningAgent:
         sample = random.random()
         eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
             math.exp(-1. * self.counter / self.eps_decay)
-        # display.data.q_values.append(q_values.max(1)[0].item())
         self.steps += 1
         if sample > eps_threshold:
             with torch.no_grad():
@@ -265,7 +265,7 @@ class LearningAgent:
         last_score = 0
         self.score = 0
         while True:
-            action = self.select_action(state)
+            action = self.act(state)
             action_t = action.item()
             for i in range(3):
                 if not done:
@@ -287,7 +287,7 @@ class LearningAgent:
                                torch.tensor([reward_], device=device), next_state, done)
             state = next_state
             if self.steps % 2 == 0:
-                self.optimize_model()
+                self.evaluate()
             self.last_action = action_t
             if done:
                 # assert reward_sum == reward
@@ -309,7 +309,7 @@ class LearningAgent:
                 random_action)
             state = self.process_state(obs)
             while True:
-                action = self.select_action(state, eval=True)
+                action = self.act(state, eval=True)
                 action_t = action.item()
                 print("action", action_t)
                 for i in range(3):
@@ -336,8 +336,8 @@ class LearningAgent:
 
 if __name__ == '__main__':
     agent = LearningAgent()
-    #agent.load_model(name="100-49804",)
+    # agent.load_model(name="400-250134",)
     agent.rewards = []
     while True:
-        #agent.train()
-        agent.test()
+        agent.train()
+        # agent.test()
