@@ -214,7 +214,7 @@ class LearningAgent:
         return channel_matrix
 
     def save_model(self):
-        if self.episode % SAVE_EPISODE_FREQ == 0 and self.episode != 0:
+        if self.episode % SAVE_EPISODE_FREQ == 0 and self.episode != 0 or self.steps >= self.step_limit:
             torch.save(self.policy.state_dict(), os.path.join(
                 os.getcwd() + "\\results", f"policy-model-{self.episode}-{self.steps}.pt"))
             torch.save(self.target.state_dict(), os.path.join(
@@ -252,9 +252,18 @@ class LearningAgent:
         direction_index = direction_mapping[current_direction]
         direction_encoding[direction_index] = 1
 
+    def skip(self):
+        if self.episode == 0:
+            done = False
+            while not done:
+                random_action = random.choice([0, 1, 2, 3])
+                obs, self.score, done, remaining_lives, invalid_move = self.game.step(
+                    random_action)
+
     def train(self):
         self.save_model()
         obs = self.game.start()
+        self.skip()
         self.score = 0
         self.episode += 1
         lives = 3
@@ -300,7 +309,6 @@ class LearningAgent:
 
     def test(self, episodes=10):
         if self.episode < episodes:
-            self.load_model(name="400-250134")
             obs = self.game.start()
             self.episode += 1
             lives = 3
