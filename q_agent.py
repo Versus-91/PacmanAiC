@@ -24,7 +24,7 @@ SAVE_EPISODE_FREQ = 100
 GAMMA = 0.99
 MOMENTUM = 0.95
 MEMORY_SIZE = 30000
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.0008
 
 Experience = namedtuple('Experience', field_names=[
                         'state', 'action', 'reward', 'done', 'new_state'])
@@ -32,7 +32,7 @@ Experience = namedtuple('Experience', field_names=[
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
 EPS_START = 1.0
 EPS_END = 0.1
-EPS_DECAY = 400000
+EPS_DECAY = 100000
 MAX_STEPS = 800000
 
 
@@ -88,40 +88,66 @@ class PacmanAgent:
         )
 
     def calculate_reward(self, done, lives, hit_wall, hit_ghost, action, prev_score):
-
         reward = 0
         if done:
             if lives > 0:
                 print("won")
-                reward = 30
+                reward = 50
             else:
-                reward = -30
+                reward = -50
             return reward
         if self.score - prev_score == 10:
-            reward += 10
+            reward += 12
+            return reward
         if self.score - prev_score == 50:
             print("power up")
-            reward += 13
-        if reward > 0:
-            progress = self.score // 400
-            reward += progress
+            reward += 15
             return reward
-        if self.score - prev_score >= 200:
-            return 12
+
         if hit_wall:
-            reward -= 6
+            return -10  # Pacman hit a wall
         if hit_ghost:
-            reward -= 20
+            return -200  # Pacman hit a ghost
+        if self.score - prev_score >= 200:
+            return 20
         if REVERSED[self.last_action] == action:
-            print(action, self.last_action)
-            self.loop_action_counter += 1
-        else:
-            self.loop_action_counter = 0
-        if self.loop_action_counter > 1:
-            reward -= 3
-            print("what the fuck")
-        reward -= 2
-        return reward
+            return -6
+        # if self.last_reward == 0 and reward == 0:
+        #     reward = -0.5
+        return -4
+        # reward = 0
+        # if done:
+        #     if lives > 0:
+        #         print("won")
+        #         reward = 30
+        #     else:
+        #         reward = -30
+        #     return reward
+        # if self.score - prev_score == 10:
+        #     reward += 10
+        # if self.score - prev_score == 50:
+        #     print("power up")
+        #     reward += 13
+        # if reward > 0:
+        #     progress = self.score // 400
+        #     reward += progress
+        #     return reward
+        # if self.score - prev_score >= 200:
+        #     return 12
+        # if hit_wall:
+        #     reward -= 6
+        # if hit_ghost:
+        #     reward -= 20
+        # if REVERSED[self.last_action] == action:
+        #     print(action, self.last_action)
+        #     self.loop_action_counter += 1
+        # else:
+        #     self.loop_action_counter = 0
+        # if self.loop_action_counter > 1:
+        #     reward -= 3
+        #     print("what the fuck")
+        # reward -= 2
+        # return reward
 
     def optimize_model(self):
         if len(self.memory) < BATCH_SIZE:
@@ -150,7 +176,7 @@ class PacmanAgent:
         if self.steps % 10 == 0:
             self.target.load_state_dict(self.policy.state_dict())
 
-    def select_action(self, state, eval=False):
+    def act(self, state, eval=False):
         if eval:
             with torch.no_grad():
                 q_values = self.policy(state)
@@ -158,7 +184,7 @@ class PacmanAgent:
             return vals.view(1, 1)
         rand = random.random()
         epsilon = max(EPS_END, EPS_START - (EPS_START - EPS_END)
-                      * self.counter / EPS_DECAY)
+                      * self.steps / EPS_DECAY)
         self.steps += 1
         if rand > epsilon:
             with torch.no_grad():
@@ -208,10 +234,10 @@ class PacmanAgent:
         self.steps = int(name_parts[1])
         self.counter = int(self.steps / 2)
         path = os.path.join(
-            os.getcwd() + "\\results\\r1", f"target-model-{name}.pt")
+            os.getcwd() + "\\results", f"target-model-{name}.pt")
         self.target.load_state_dict(torch.load(path))
         path = os.path.join(
-            os.getcwd() + "\\results\\r1", f"policy-model-{name}.pt")
+            os.getcwd() + "\\results", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
         if eval:
             self.target.eval()
@@ -251,9 +277,9 @@ class PacmanAgent:
         last_score = 0
         self.score = 0
         while True:
-            action = self.select_action(state)
+            action = self.act(state)
             action_t = action.item()
-            for i in range(3):
+            for i in range(4):
                 if not done:
                     obs, self.score, done, remaining_lives, invalid_move = self.game.step(
                         action_t)
@@ -277,6 +303,19 @@ class PacmanAgent:
             self.last_action = action_t
             if done:
                 # assert reward_sum == reward
+                current_lr = self.optimizer.param_groups[0]["lr"]
+                epsilon = max(EPS_END, EPS_START - (EPS_START - EPS_END)
+                              * self.steps / EPS_DECAY)
+                print(
+                    "epsilon",
+                    round(epsilon, 3),
+                    "reward",
+                    self.score,
+                    "learning rate",
+                    round(current_lr, 5),
+                    "episode",
+                    self.episode
+                )
                 self.rewards.append(self.score)
                 self.plot_rewards(avg=10)
                 time.sleep(1)
@@ -294,10 +333,9 @@ class PacmanAgent:
                 random_action)
             state = self.process_state(obs)
             while True:
-                action = self.select_action(state, eval=True)
+                action = self.act(state, eval=True)
                 action_t = action.item()
-                print("action", action_t)
-                for i in range(3):
+                for i in range(4):
                     if not done:
                         obs, reward, done, remaining_lives, invalid_move = self.game.step(
                             action_t)
@@ -321,8 +359,8 @@ class PacmanAgent:
 
 if __name__ == '__main__':
     agent = PacmanAgent()
-    #agent.load_model(name="400-250134", eval=True)
+    agent.load_model(name="500-68684", eval=True)
     agent.rewards = []
     while True:
-        agent.train()
-        #agent.test()
+        # agent.train()
+        agent.test()
