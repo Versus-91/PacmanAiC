@@ -167,8 +167,21 @@ class LearningAgent:
         # for target_param, local_param in zip(target_DQN.parameters(), policy_DQN.parameters()):
         #     target_param.data.copy_(TAU * local_param.data + (1 - TAU) * target_param.data)
 
-    def act(self, state):
+    def act(self, state, eval=False):
         sample = random.random()
+        if eval:
+            epsilon = 0.05
+            if sample > epsilon:
+                with torch.no_grad():
+                    q_values = self.policy(state)
+                # Optimal action
+                vals = q_values.max(1)[1]
+                return vals.view(1, 1)
+            else:
+                action = random.randrange(N_ACTIONS)
+                while action == REVERSED[self.last_action]:
+                    action = random.randrange(N_ACTIONS)
+                return torch.tensor([[action]], device=device, dtype=torch.long)
         epsilon = max(self.eps_end, self.eps_start -
                       (self.eps_start - self.eps_end) * self.steps / self.eps_decay)
         self.steps += 1
@@ -186,19 +199,18 @@ class LearningAgent:
                 action = random.randrange(N_ACTIONS)
             return torch.tensor([[action]], device=device, dtype=torch.long)
 
-    def plot_rewards(self, show_result=False):
+    def plot_rewards(self, name="progress", avg=50, items=[]):
         plt.figure(1)
-        durations_t = torch.tensor(self.rewards, dtype=torch.float)
+        durations_t = torch.tensor(items, dtype=torch.float)
         plt.xlabel('Episode')
         plt.ylabel('Rewards')
         plt.plot(durations_t.numpy())
-        if len(durations_t) >= 100:
-            means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-            means = torch.cat((torch.zeros(99), means))
+        if len(durations_t) >= avg:
+            means = durations_t.unfold(0, avg, 1).mean(1).view(-1)
+            means = torch.cat((torch.zeros(avg-1), means))
             plt.plot(means.numpy())
-
         plt.pause(0.001)
-        plt.savefig('plot.png')
+        plt.savefig(name+'.png')
 
     def process_state(self, states):
         pallets_tensor = torch.from_numpy(states[0]).float().to(device)
@@ -220,16 +232,20 @@ class LearningAgent:
             torch.save(self.target.state_dict(), os.path.join(
                 os.getcwd() + "\\results", f"target-model-{self.episode}-{self.steps}.pt"))
 
-    def load_model(self, name="200-44483"):
+    def load_model(self, name="200-44483", eval=True):
         self.steps = 44483
         path = os.path.join(
             os.getcwd() + "\\results", f"target-model-{name}.pt")
         self.target.load_state_dict(torch.load(path))
-        self.target.train()
         path = os.path.join(
             os.getcwd() + "\\results", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
-        self.policy.train()
+        if eval:
+            self.target.eval()
+            self.policy.eval()
+        else:
+            self.target.train()
+            self.policy.train()
 
     def train(self):
         self.save_model()
@@ -298,8 +314,50 @@ class LearningAgent:
                 torch.cuda.empty_cache()
                 break
 
+    def test(self, model=""):
+        self.load_model(name=model)
+        obs = self.game.start()
+        action_interval = 0.03
+        start_time = time.time()
+        self.episode += 1
+        lives = 3
+        obs, reward, done, info, invalid_move, _ = self.game.step(2)
+        state = self.process_state(obs)
+        reward_sum = 0
+        last_score = 0
+        pellet_eaten = 0
+        last_action = 0
+        last_state = None
+
+        while True:
+            current_time = time.time()
+            elapsed_time = current_time - start_time
+            if elapsed_time >= action_interval:
+                action = self.act(state, eval=True)
+                action_t = action.item()
+                obs, reward, done, remaining_lives, invalid_move, pellet_name = self.game.step(
+                    action_t)
+                state = self.process_state(obs)
+                last_action = action_t
+                start_time = time.time()
+                reward_sum = reward
+            elif elapsed_time < action_interval:
+                obs, reward, done, remaining_lives, invalid_move, pellet_name = self.game.step(
+                    last_action)
+                reward_sum = reward
+            if done:
+                # assert reward_sum == reward
+                self.rewards.append(reward_sum)
+                self.plot_rewards(avg=10, name="test", items=self.rewards)
+                time.sleep(1)
+                self.game.restart()
+                reward_sum = 0
+                torch.cuda.empty_cache()
+                break
+
 
 if __name__ == '__main__':
-    agetnt = LearningAgent()
+    agent = LearningAgent()
     while True:
-        agetnt.train()
+        # agent.train()
+        agent.test(model="300-107646")
