@@ -18,6 +18,8 @@ from game import GameWrapper
 import random
 import matplotlib
 from time import sleep
+
+from run import GameState
 matplotlib.use('Agg')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
@@ -72,11 +74,11 @@ class LearningAgent:
     def __init__(self):
         self.eps_start = 0.9
         self.eps_end = 0.05
-        self.eps_decay = 100000
+        self.eps_decay = 1000000
         self.gamma = 0.99
         self.momentum = 0.95
         self.replay_size = 80000
-        self.learning_rate = 0.0005
+        self.learning_rate = 0.001
         self.steps = 0
         self.target = NeuralNetwork().to(device)
         self.policy = NeuralNetwork().to(device)
@@ -97,7 +99,7 @@ class LearningAgent:
         distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
         return distance
 
-    def calculate_reward(self, done, lives, eat_pellet, eat_powerup, hit_wall, hit_ghost, ate_ghost):
+    def calculate_reward(self, done, lives, eat_pellet, eat_powerup, hit_wall, hit_ghost, ate_ghost, info: GameState):
         # Initialize reward
         reward = 0
 
@@ -109,14 +111,9 @@ class LearningAgent:
                 reward = -100  # Game lost
             return reward
 
-        # Calculate the distance to the nearest food pellet
-        # current_pos = state.get_pacman_position()
-        # nearest_pellet = state.get_nearest_pellet_position()
-        # distance_to_pellet = calculate_distance(current_pos, nearest_pellet)
-
-        # Check if Pacman ate a pellet
         if eat_pellet:
-            reward += 10  # Pacman ate a pellet
+            # Pacman ate a pellet
+            reward += 10 + (info.collected_pellets / info.total_pellets) * 15
         if eat_powerup:
             reward += 30  # Pacman ate a power pellet
 
@@ -254,13 +251,12 @@ class LearningAgent:
         start_time = time.time()
         self.episode += 1
         lives = 3
-        obs, reward, done, info, invalid_move, _ = self.game.step(2)
+        obs, reward, done, info, = self.game.step(2)
         # obs = obs[0].flatten().astype(dtype=np.float32)
         # state = torch.from_numpy(obs).unsqueeze(0).to(device)
         state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
-        pellet_eaten = 0
         last_action = 0
         last_state = None
         while True:
@@ -269,15 +265,15 @@ class LearningAgent:
             if elapsed_time >= action_interval:
                 action = self.act(state)
                 action_t = action.item()
-                obs, reward, done, remaining_lives, invalid_move, pellet_name = self.game.step(
+                obs, reward, done, info = self.game.step(
                     action_t)
                 hit_ghost = False
-                if lives != remaining_lives:
+                if lives != info.lives:
                     hit_ghost = True
                     lives -= 1
                 next_state = self.process_state(obs)
                 reward_ = self.calculate_reward(
-                    done, lives, reward - last_score == 10, reward - last_score == 50, invalid_move, hit_ghost, reward - last_score >= 200)
+                    done, lives, reward - last_score == 10, reward - last_score == 50, info.invalid_move, hit_ghost, reward - last_score >= 200, info)
                 if last_score < reward:
                     reward_sum += reward - last_score
                 last_score = reward
@@ -290,10 +286,13 @@ class LearningAgent:
                 last_action = action_t
                 if self.steps % 2 == 0:
                     self.optimize_model()
-
                 start_time = time.time()
+                if self.steps % 100000 == 0:
+                    if self.steps // 100000 <= 3:
+                        lr = self.optimizer.param_groups[0]['lr']
+                        self.optimizer.param_groups[0]['lr'] = lr * 0.5
             elif elapsed_time < action_interval:
-                obs, reward, done, remaining_lives, invalid_move, pellet_name = self.game.step(
+                obs, reward, done, info = self.game.step(
                     last_action)
                 if done:
                     reward_ = -100
@@ -301,10 +300,11 @@ class LearningAgent:
                     self.memory.append(last_state, action_tensor,
                                        torch.tensor([reward_], device=device), next_state, done)
             if done:
+                current_lr = self.optimizer.param_groups[0]["lr"]
                 epsilon = max(self.eps_end, self.eps_start -
                               (self.eps_start - self.eps_end) * self.steps / self.eps_decay)
                 print("epsilon", round(epsilon, 3), "reward", reward_sum, "learning_rate",
-                      self.learning_rate, "steps", self.steps, "episode", self.episode)
+                      current_lr, "steps", self.steps, "episode", self.episode)
                 # assert reward_sum == reward
                 self.rewards.append(reward_sum)
                 self.plot_rewards()
@@ -321,7 +321,7 @@ class LearningAgent:
         start_time = time.time()
         self.episode += 1
         lives = 3
-        obs, reward, done, info, invalid_move, _ = self.game.step(2)
+        obs, reward, done, info = self.game.step(2)
         state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
@@ -335,14 +335,14 @@ class LearningAgent:
             if elapsed_time >= action_interval:
                 action = self.act(state, eval=True)
                 action_t = action.item()
-                obs, reward, done, remaining_lives, invalid_move, pellet_name = self.game.step(
+                obs, reward, done, info = self.game.step(
                     action_t)
                 state = self.process_state(obs)
                 last_action = action_t
                 start_time = time.time()
                 reward_sum = reward
             elif elapsed_time < action_interval:
-                obs, reward, done, remaining_lives, invalid_move, pellet_name = self.game.step(
+                obs, reward, done, info = self.game.step(
                     last_action)
                 reward_sum = reward
             if done:
@@ -359,5 +359,5 @@ class LearningAgent:
 if __name__ == '__main__':
     agent = LearningAgent()
     while True:
-        # agent.train()
-        agent.test(model="300-107646")
+        agent.train()
+        # agent.test(model="300-107646")
