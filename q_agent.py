@@ -69,7 +69,7 @@ class DQN(nn.Module):
 
 class LearningAgent:
     def __init__(self):
-        self.eps_start = 0.9
+        self.eps_start = 1
         self.eps_end = 0.05
         self.eps_decay = 100000
         self.gamma = 0.99
@@ -192,10 +192,10 @@ class LearningAgent:
             vals = q_values.max(1)[1]
             return vals.view(1, 1)
         sample = random.random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
+        epsilon = self.eps_end + (self.eps_start - self.eps_end) * \
             math.exp(-1. * self.counter / self.eps_decay)
         self.steps += 1
-        if sample > eps_threshold:
+        if sample > epsilon:
             with torch.no_grad():
                 q_values = self.policy(state)
             # Optimal action
@@ -282,13 +282,14 @@ class LearningAgent:
     def train(self):
         self.save_model()
         obs = self.game.start()
-        self.skip()
+        # self.skip()
         self.score = 0
         self.episode += 1
         lives = 3
         random_action = random.choice([0, 1, 2, 3])
-        obs, self.score, done, remaining_lives, invalid_move = self.game.step(
-            random_action)
+        for i in range(3):
+            obs, self.score, done, remaining_lives, invalid_move = self.game.step(
+                random_action)
         state = self.process_state(obs)
         last_score = 0
         self.score = 0
@@ -318,7 +319,19 @@ class LearningAgent:
                 self.evaluate()
             self.last_action = action_t
             if done:
+                epsilon = self.eps_end + (self.eps_start - self.eps_end) * \
+                    math.exp(-1. * self.counter / self.eps_decay)
                 # assert reward_sum == reward
+                print(
+                    "epsilon",
+                    round(epsilon, 3),
+                    "reward",
+                    self.score,
+                    "learning rate",
+                    round(self.learning_rate, 5),
+                    "episode",
+                    self.episode
+                )
                 self.rewards.append(self.score)
                 self.plot_rewards(avg=10)
                 time.sleep(1)
@@ -363,8 +376,8 @@ class LearningAgent:
 
 if __name__ == '__main__':
     agent = LearningAgent()
-    # agent.load_model(name="400-250134",)
+    agent.load_model(name="200-73376",)
     agent.rewards = []
     while True:
-        agent.train()
-        # agent.test()
+        #agent.train()
+        agent.test()
