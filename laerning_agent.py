@@ -72,15 +72,15 @@ class LearningAgent:
     def __init__(self):
         self.eps_start = 0.9
         self.eps_end = 0.05
-        self.eps_decay = 1000
+        self.eps_decay = 100000
         self.gamma = 0.99
         self.momentum = 0.95
         self.replay_size = 80000
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.0005
         self.steps = 0
         self.target = NeuralNetwork().to(device)
         self.policy = NeuralNetwork().to(device)
-        self.load_model()
+        # self.load_model()
         self.memory = ExperienceReplay(self.replay_size)
         self.game = GameWrapper()
         self.last_action = 0
@@ -167,13 +167,13 @@ class LearningAgent:
         # for target_param, local_param in zip(target_DQN.parameters(), policy_DQN.parameters()):
         #     target_param.data.copy_(TAU * local_param.data + (1 - TAU) * target_param.data)
 
-    def select_action(self, state):
+    def act(self, state):
         sample = random.random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
-            math.exp(-1. * self.steps / self.eps_decay)
+        epsilon = max(self.eps_end, self.eps_start -
+                      (self.eps_start - self.eps_end) * self.steps / self.eps_decay)
         self.steps += 1
         # display.data.q_values.append(q_values.max(1)[0].item())
-        if sample > eps_threshold:
+        if sample > epsilon:
             with torch.no_grad():
                 q_values = self.policy(state)
             # Optimal action
@@ -214,7 +214,7 @@ class LearningAgent:
         return channel_matrix
 
     def save_model(self):
-        if self.episode % SAVE_EPISODE_FREQ == 0:
+        if self.episode % SAVE_EPISODE_FREQ == 0 and self.episode != 0:
             torch.save(self.policy.state_dict(), os.path.join(
                 os.getcwd() + "\\results", f"policy-model-{self.episode}-{self.steps}.pt"))
             torch.save(self.target.state_dict(), os.path.join(
@@ -234,7 +234,7 @@ class LearningAgent:
     def train(self):
         self.save_model()
         obs = self.game.start()
-        action_interval = 0.02
+        action_interval = 0.03
         start_time = time.time()
         self.episode += 1
         lives = 3
@@ -245,11 +245,13 @@ class LearningAgent:
         reward_sum = 0
         last_score = 0
         pellet_eaten = 0
+        last_action = 0
+        last_state = None
         while True:
             current_time = time.time()
             elapsed_time = current_time - start_time
             if elapsed_time >= action_interval:
-                action = self.select_action(state)
+                action = self.act(state)
                 action_t = action.item()
                 obs, reward, done, remaining_lives, invalid_move, pellet_name = self.game.step(
                     action_t)
@@ -268,14 +270,26 @@ class LearningAgent:
                 self.memory.append(state, action_tensor,
                                    torch.tensor([reward_], device=device), next_state, done)
                 state = next_state
+                last_state = next_state
+                last_action = action_t
                 if self.steps % 2 == 0:
                     self.optimize_model()
 
                 start_time = time.time()
             elif elapsed_time < action_interval:
-                self.game.update()
+                obs, reward, done, remaining_lives, invalid_move, pellet_name = self.game.step(
+                    last_action)
+                if done:
+                    reward_ = -100
+                    next_state = self.process_state(obs)
+                    self.memory.append(last_state, action_tensor,
+                                       torch.tensor([reward_], device=device), next_state, done)
             if done:
-                assert reward_sum == reward
+                epsilon = max(self.eps_end, self.eps_start -
+                              (self.eps_start - self.eps_end) * self.steps / self.eps_decay)
+                print("epsilon", round(epsilon, 3), "reward", reward_sum, "learning_rate",
+                      self.learning_rate, "steps", self.steps, "episode", self.episode)
+                # assert reward_sum == reward
                 self.rewards.append(reward_sum)
                 self.plot_rewards()
                 time.sleep(1)
