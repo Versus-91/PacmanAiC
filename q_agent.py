@@ -96,47 +96,66 @@ class LearningAgent:
             self.policy.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov=True
         )
 
-    def calculate_distance(pos1, pos2):
-        # pos1 and pos2 are tuples representing positions (x, y)
-        x1, y1 = pos1
-        x2, y2 = pos2
-        distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-        return distance
-
     def calculate_reward(self, done, lives, hit_wall, hit_ghost, action, prev_score):
-
         reward = 0
         if done:
             if lives > 0:
                 print("won")
-                reward = 30
+                reward = 50
             else:
-                reward = -30
+                reward = -50
             return reward
         if self.score - prev_score == 10:
-            reward += 10
+            reward += 12
+            return reward
         if self.score - prev_score == 50:
             print("power up")
-            reward += 11
-        if reward > 0:
-            progress = self.score // 400
-            reward += progress
+            reward += 15
             return reward
-        if self.score - prev_score >= 200:
-            return 12
-        # if hit_wall:
-        #     reward -= 10
+
+        if hit_wall:
+            return -10  # Pacman hit a wall
         if hit_ghost:
-            reward -= 20
+            return -200  # Pacman hit a ghost
+        if self.score - prev_score >= 200:
+            return 20
         if REVERSED[self.last_action] == action:
-            print(action, self.last_action)
-            self.loop_action_counter += 1
-        else:
-            self.loop_action_counter = 0
-        if self.loop_action_counter > 1:
-            reward -= 3
-            print("why the fuck")
-        return reward
+            return -6
+        # if self.last_reward == 0 and reward == 0:
+        #     reward = -0.5
+        return -4
+        # reward = 0
+        # if done:
+        #     if lives > 0:
+        #         print("won")
+        #         reward = 30
+        #     else:
+        #         reward = -30
+        #     return reward
+        # if self.score - prev_score == 10:
+        #     reward += 10
+        # if self.score - prev_score == 50:
+        #     print("power up")
+        #     reward += 11
+        # if reward > 0:
+        #     progress = self.score // 400
+        #     reward += progress
+        #     return reward
+        # if self.score - prev_score >= 200:
+        #     return 12
+        # # if hit_wall:
+        # #     reward -= 10
+        # if hit_ghost:
+        #     reward -= 20
+        # if REVERSED[self.last_action] == action:
+        #     print(action, self.last_action)
+        #     self.loop_action_counter += 1
+        # else:
+        #     self.loop_action_counter = 0
+        # if self.loop_action_counter > 1:
+        #     reward -= 3
+        #     print("why the fuck")
+        # return reward
 
     def evaluate(self):
         if len(self.memory) < BATCH_SIZE:
