@@ -5,7 +5,7 @@ import torch.nn as nn
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super(NeuralNetwork, self).__init__()
-        self.conv1 = nn.Conv2d(6, 16, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(4, 16, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
         self.relu2 = nn.ReLU()

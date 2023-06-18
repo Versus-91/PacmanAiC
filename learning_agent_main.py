@@ -54,22 +54,6 @@ class ExperienceReplay:
         return len(self.buffer)
 
 
-class DQN(nn.Module):
-    def __init__(self, input_shape, num_actions):
-        super(DQN, self).__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(input_shape, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, num_actions)
-        )
-
-    def forward(self, x):
-        x = self.fc(x)
-        return x
-
-
 class LearningAgent:
     def __init__(self):
         # self.eps_start = 0.9
@@ -212,15 +196,15 @@ class LearningAgent:
         plt.savefig(name+'.png')
 
     def process_state(self, states):
-        pallets_tensor = torch.from_numpy(states[0]).float().to(device)
+        walls_tensor = torch.from_numpy(states[0]).float().to(device)
         pacman_tensor = torch.from_numpy(states[1]).float().to(device)
         pellets_tensor = torch.from_numpy(states[2]).float().to(device)
-        powerpellets_tensor = torch.from_numpy(states[3]).float().to(device)
-        ghosts_tensor = torch.from_numpy(states[4]).float().to(device)
-        frightened_ghosts_tensor = torch.from_numpy(
-            states[5]).float().to(device)
-        channel_matrix = torch.stack([pallets_tensor, pacman_tensor, pellets_tensor,
-                                     powerpellets_tensor, ghosts_tensor, frightened_ghosts_tensor], dim=0)
+        ghosts_tensor = torch.from_numpy(states[3]).float().to(device)
+        # ghosts_tensor = torch.from_numpy(states[4]).float().to(device)
+        # frightened_ghosts_tensor = torch.from_numpy(
+        #     states[5]).float().to(device)
+        channel_matrix = torch.stack([walls_tensor, pacman_tensor, pellets_tensor,
+                                     ghosts_tensor], dim=0)
         channel_matrix = channel_matrix.unsqueeze(0)
         return channel_matrix
 
@@ -253,13 +237,14 @@ class LearningAgent:
         start_time = time.time()
         self.episode += 1
         lives = 3
-        obs, reward, done, info, = self.game.step(2)
+        action = random.choice([0, 1, 2, 3])
+        obs, reward, done, info, = self.game.step(action)
         # obs = obs[0].flatten().astype(dtype=np.float32)
         # state = torch.from_numpy(obs).unsqueeze(0).to(device)
         state = self.process_state(obs)
         reward_sum = 0
         last_score = 0
-        last_action = 0
+        self.last_action = action
         last_state = None
         while True:
             current_time = time.time()
@@ -285,7 +270,7 @@ class LearningAgent:
                                    torch.tensor([reward_], device=device), next_state, done)
                 state = next_state
                 last_state = next_state
-                last_action = action_t
+                self.last_action = action_t
                 if self.steps % 2 == 0:
                     self.optimize_model()
                 start_time = time.time()
@@ -295,7 +280,7 @@ class LearningAgent:
                         self.optimizer.param_groups[0]['lr'] = lr * 0.8
             elif elapsed_time < action_interval:
                 obs, reward, done, info = self.game.step(
-                    last_action)
+                    self.last_action)
                 if done:
                     reward_ = -100
                     next_state = self.process_state(obs)

@@ -28,12 +28,12 @@ class GameState:
 
 game_states = {
     'pallet': 1,
-    'powerpallet': 1,
+    'powerpallet': 2,
     'ghost_fright': 1,
     'ghost': 1,
     'pacman': 1,
     'wall': 1,
-    'path': 1,
+    'path': 3,
     'empty': 0,
 }
 direction_vals = {
@@ -197,7 +197,6 @@ class GameController(object):
         ghosts = np.zeros(maze_data.shape)
         frightened_ghosts = np.zeros(maze_data.shape)
         pacman = np.zeros(maze_data.shape)
-        powerpellets = np.zeros(maze_data.shape)
         walls = np.zeros(maze_data.shape)
         for idx, values in enumerate(maze_data):
             for id, value in enumerate(values):
@@ -207,10 +206,6 @@ class GameController(object):
                     walls[idx][id] = game_states.get('wall')
                 if value == 'n' or value == '|' or value == '-' or value == '.' or value == 'p' or value == '+':
                     walls[idx][id] = game_states.get('path')
-        for idx, values in enumerate(self.eatenPellets):
-            x = int(values.position.x / 16)
-            y = int(values.position.y / 16)
-            walls[y][x] = game_states.get('path')
         for idx, values in enumerate(self.pellets.pelletList):
             x = int(values.position.x / 16)
             y = int(values.position.y / 16)
@@ -218,38 +213,20 @@ class GameController(object):
         for idx, values in enumerate(self.pellets.powerpellets):
             x = int(values.position.x / 16)
             y = int(values.position.y / 16)
-            powerpellets[y][x] = game_states.get('powerpallet')
+            pellets[y][x] = game_states.get('powerpallet')
 
         x = int(self.pacman.position.x / 16)
         y = int(self.pacman.position.y / 16)
         pacman[y][x] = game_states.get('pacman')
 
-        x = int(self.ghosts.blinky.position.x / 16)
-        y = int(self.ghosts.blinky.position.y / 16)
-        if self.ghosts.blinky.mode.current is not FREIGHT:
-            ghosts[y][x] = game_states.get('ghost')
-        else:
-            frightened_ghosts[y][x] = game_states.get('ghost_fright')
-
-        x = int(self.ghosts.inky.position.x / 16)
-        y = int(self.ghosts.inky.position.y / 16)
-        if self.ghosts.inky.mode.current is not FREIGHT:
-            ghosts[y][x] = game_states.get('ghost')
-        else:
-            frightened_ghosts[y][x] = game_states.get('ghost_fright')
-
-        x = int(self.ghosts.pinky.position.x / 16)
-        y = int(self.ghosts.pinky.position.y / 16)
-        if self.ghosts.pinky.mode.current is not FREIGHT:
-            ghosts[y][x] = game_states.get('ghost')
-        else:
-            frightened_ghosts[y][x] = game_states.get('ghost_fright')
-        x = int(self.ghosts.clyde.position.x / 16)
-        y = int(self.ghosts.clyde.position.y / 16)
-        if self.ghosts.clyde.mode.current is not FREIGHT:
-            ghosts[y][x] = game_states.get('ghost')
-        else:
-            frightened_ghosts[y][x] = game_states.get('ghost_fright')
+        for ghost in enumerate(self.ghosts):
+            x = int(round(ghost[1].position.x / 16))
+            y = int(round(ghost[1].position.y / 16))
+            if ghost[1].mode.current is not FREIGHT:
+                ghosts[y][x] = -1 * \
+                    game_states.get('ghost')
+            elif ghost[1].mode.current is FREIGHT:
+                ghosts[y][x] = game_states.get('ghost')
         # state.append(maze_data)
         # state.append(ghosts_position)
         # state.append(self.pacman.direction)
@@ -257,7 +234,7 @@ class GameController(object):
         # walls = walls[7:29, 5:23]
         # pellets = pellets[7:29, 5:23]
         # ghosts = ghosts[7:29, 5:23]
-        return [walls, pacman, pellets, powerpellets, ghosts, frightened_ghosts]
+        return [walls, pacman, pellets, ghosts]
 
     def perform_action(self, action):
         state = None
