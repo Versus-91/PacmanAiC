@@ -33,10 +33,10 @@ Experience = namedtuple(
 )
 
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
-EPS_START = 0.9
-EPS_END = 0.05
-EPS_DECAY = 150000
-MAX_STEPS = 200000
+EPS_START = 1
+EPS_END = 0.1
+EPS_DECAY = 200000
+MAX_STEPS = 250000
 
 
 class ExperienceReplay:
@@ -102,33 +102,33 @@ class PacmanAgent:
         if done:
             if lives > 0:
                 print("won")
-                reward = 30
+                reward = 10
             else:
-                reward = -30
+                reward = -10
             return reward
         if self.score - prev_score == 10:
-            reward += 13
+            reward += 3
         if self.score - prev_score == 50:
             print("power up")
-            reward += 18
+            reward += 4
         if reward > 0:
-            progress = (info.collected_pellets / info.total_pellets) * 7
+            progress = (info.collected_pellets / info.total_pellets) * 5
             reward += progress
             return reward
         if self.score - prev_score >= 200:
-            return 16
+            return 5
         if info.invalid_move:
-            reward -= 3
+            reward -= 2
         if hit_ghost:
-            reward -= 20
+            reward -= 6
         if REVERSED[self.last_action] == action:
             self.loop_action_counter += 1
             reward -= 3
         else:
             self.loop_action_counter = 0
         if self.loop_action_counter > 1:
-            reward -= 6
-        reward -= 2
+            reward -= 3
+        reward -= 1
         return reward
 
     def evaluate(self):
@@ -279,9 +279,12 @@ class PacmanAgent:
                 )
             state = next_state
             self.evaluate()
-            self.last_action = action_t
-            if self.steps % 20000 == 0:
-                self.scheduler.step()
+            if info.invalid_move == False:
+                self.last_action = action_t
+            if self.steps % 100000 == 0:
+                optim.param_groups[0]['lr'] = 0.0005
+            if self.steps % 200000 == 0:
+                    optim.param_groups[0]['lr'] = 0.0003
             if done:
                 current_lr = self.optimizer.param_groups[0]["lr"]
                 epsilon = max(
@@ -337,8 +340,8 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    agent.load_model(name="400-144694", eval=True)
+    #agent.load_model(name="400-144694", eval=True)
     #agent.rewards = []
     while True:
-        #agent.train()
-        agent.test()
+        agent.train()
+        #agent.test()
