@@ -72,12 +72,14 @@ class DQN(nn.Module):
 
 class LearningAgent:
     def __init__(self):
-        self.eps_start = 0.9
-        self.eps_end = 0.05
-        self.eps_decay = 1000000
+        # self.eps_start = 0.9
+        # self.eps_end = 0.05
+        self.eps_start = 1
+        self.eps_end = 0.1
+        self.eps_decay = 400000
         self.gamma = 0.99
         self.momentum = 0.95
-        self.replay_size = 80000
+        self.replay_size = 20000
         self.learning_rate = 0.001
         self.steps = 0
         self.target = NeuralNetwork().to(device)
@@ -87,6 +89,7 @@ class LearningAgent:
         self.game = GameWrapper()
         self.last_action = 0
         self.rewards = []
+        self.loss = []
         self.episode = 0
         self.optimizer = optim.SGD(
             self.policy.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov=True
@@ -115,7 +118,7 @@ class LearningAgent:
             # Pacman ate a pellet
             reward += 10 + (info.collected_pellets / info.total_pellets) * 15
         if eat_powerup:
-            reward += 30  # Pacman ate a power pellet
+            reward += 30 + (info.collected_pellets / info.total_pellets) * 15
 
         # Encourage Pacman to move towards the nearest pellet
         # reward -= distance_to_pellet
@@ -151,8 +154,7 @@ class LearningAgent:
         criterion = torch.nn.SmoothL1Loss()
         loss = criterion(predicted_targets,
                          labels.detach().unsqueeze(1)).to(device)
-        # display.data.losses.append(loss.item())
-        # print("loss", loss.item())
+        self.loss.append(loss.item())
         self.optimizer.zero_grad()
         loss.backward()
         for param in self.policy.parameters():
@@ -290,7 +292,7 @@ class LearningAgent:
                 if self.steps % 100000 == 0:
                     if self.steps // 100000 <= 3:
                         lr = self.optimizer.param_groups[0]['lr']
-                        self.optimizer.param_groups[0]['lr'] = lr * 0.5
+                        self.optimizer.param_groups[0]['lr'] = lr * 0.8
             elif elapsed_time < action_interval:
                 obs, reward, done, info = self.game.step(
                     last_action)
@@ -307,7 +309,8 @@ class LearningAgent:
                       current_lr, "steps", self.steps, "episode", self.episode)
                 # assert reward_sum == reward
                 self.rewards.append(reward_sum)
-                self.plot_rewards()
+                self.plot_rewards(avg=50, items=self.rewards,
+                                  name="rewards")
                 time.sleep(1)
                 self.game.restart()
                 reward_sum = 0
@@ -320,14 +323,10 @@ class LearningAgent:
         action_interval = 0.03
         start_time = time.time()
         self.episode += 1
-        lives = 3
         obs, reward, done, info = self.game.step(2)
         state = self.process_state(obs)
         reward_sum = 0
-        last_score = 0
-        pellet_eaten = 0
-        last_action = 0
-        last_state = None
+        self.last_action = 2
 
         while True:
             current_time = time.time()
@@ -338,12 +337,12 @@ class LearningAgent:
                 obs, reward, done, info = self.game.step(
                     action_t)
                 state = self.process_state(obs)
-                last_action = action_t
+                self.last_action = action_t
                 start_time = time.time()
                 reward_sum = reward
             elif elapsed_time < action_interval:
                 obs, reward, done, info = self.game.step(
-                    last_action)
+                    self.last_action)
                 reward_sum = reward
             if done:
                 # assert reward_sum == reward
