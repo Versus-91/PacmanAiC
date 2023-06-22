@@ -14,7 +14,6 @@ class NeuralNetwork(nn.Module):
         self.fc2 = nn.Linear(128, 4)
 
     def forward(self, x):
-        # Define the forward pass of the neural network
         x = self.conv1(x)
         x = self.relu1(x)
         x = self.conv2(x)

@@ -11,12 +11,15 @@ class GameWrapper:
     def __init__(self):
         self.controller = GameController()
         self.action = UP
+        self.running = False
 
     def start(self):
-        self.controller.startGame()
+        if self.running == False:
+            self.running = True
+            self.controller.startGame()
 
-    def restart(self):
-        self.controller.restartGame()
+    def restart(self,level = 0):
+        self.controller.restartGame(level = 1)
 
     def step(self, action):
         assert action >= 0 and action < 4

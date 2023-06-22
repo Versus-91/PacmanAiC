@@ -239,9 +239,9 @@ class GameController(object):
     def perform_action(self, action):
         state = None
         invalid_move = False
-        if not self.pacman.validDirection(action):
+        if self.pacman.validDirection(action) == False:
             invalid_move = True
-        dt = self.clock.tick(60) / 1000.0
+        dt = self.clock.tick(120) / 1000.0
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -534,9 +534,9 @@ class GameController(object):
     def quit(self):
         exit()
 
-    def restartGame(self):
+    def restartGame(self,level = 0):
         self.lives = 3
-        self.level = 0
+        self.level = level
         self.pause.paused = False
         self.fruit = None
         self.startGame()
