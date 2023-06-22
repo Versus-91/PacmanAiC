@@ -33,7 +33,14 @@ direction_vals = {
     "-2": -0.4,
 }
 
-
+class GameState:
+    def __init__(self):
+        self.lives = 0
+        self.score = 0 
+        self.invalid_move = False
+        self.total_pellets = 0
+        self.collected_pellets = 0
+        self.done = False
 class GameController(object):
     def __init__(self):
         pygame.init()
@@ -207,7 +214,14 @@ class GameController(object):
         self.checkEvents()
         self.render()
         state = self.get_state()
-        return (state, self.score, self.lives == 0 or (self.pellets.isEmpty()), self.lives, invalid_move)
+        info = GameState()
+        info.lives = self.lives
+        info.invalid_move = invalid_move
+        info.total_pellets = len(
+            self.pellets.pelletList) + len(self.eatenPellets)
+        info.collected_pellets = len(self.eatenPellets)
+        info.done = (self.lives == 0 or (self.pellets.isEmpty()))
+        return (state,self.score, info)
 
     def checkEvents(self):
         for event in pygame.event.get():
@@ -263,9 +277,9 @@ class GameController(object):
                 # if value == '.' or value == 'p' or value == '+':
                 # pallets.push((idx, id))
                 if value in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '=', 'X']:
-                    game[idx][id] = 1
+                    walls[idx][id] = 1
                 # if value == 'n' or value == '|' or value == '-' or value == '.' or value == 'p' or value == '+':
-                #     game[idx][id] = 1
+                #      game[idx][id] = 1
         # for idx, values in enumerate(self.eatenPellets):
         #     x = int(values.position.x / 16)
         #     y = int(values.position.y / 16)
@@ -286,7 +300,7 @@ class GameController(object):
         y = int(round(self.pacman.position.y / 16))
         # assert game[y][x] != 1
         pacman[y][x] = self.direction_state(self.pacman.direction)
-        assert game[y][x] != game_states.get('wall')
+        #assert game[y][x] != game_states.get('wall')
         x = int(round(self.ghosts.blinky.position.x / 16))
         y = int(round(self.ghosts.blinky.position.y / 16))
         # self.check_ghost_pos(game[y][x], x, y)

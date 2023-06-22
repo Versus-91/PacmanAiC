@@ -1,13 +1,16 @@
-import torch
+import math
+import matplotlib.pyplot as plt
 
-# Define the number of directions
-num_directions = 4  # Replace with the actual number of directions
+eps_start = 0.9 # Initial value of epsilon
+eps_end = 0.05  # Final value of epsilon
+eps_decay = 100000  # Decay factor for epsilon
+counter = range(100000)  # Counter values
 
-# Define the index of the desired direction
-direction_index = 2  # Replace with the actual index of the desired direction
+epsilon_values = [eps_end + (eps_start - eps_end) * math.exp(-1. * c / eps_decay) for c in counter]
 
-# Create a one-hot encoded vector
-one_hot_direction = torch.eye(num_directions)[direction_index]
-
-# Example usage:
-print(one_hot_direction)
+plt.plot(counter, epsilon_values)
+plt.xlabel('Counter')
+plt.ylabel('Epsilon')
+plt.title('Epsilon Decay')
+plt.grid(True)
+plt.show()

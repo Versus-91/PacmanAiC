@@ -69,13 +69,13 @@ class DQN(nn.Module):
 
 class LearningAgent:
     def __init__(self):
-        self.eps_start = 0.9
+        self.eps_start = 0.95
         self.eps_end = 0.05
-        self.eps_decay = 1000
+        self.eps_decay = 100000
         self.gamma = 0.99
         self.momentum = 0.95
         self.replay_size = 30000
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.0002
         self.steps = 0
         self.score = 0
         self.target = QNetwork().to(device)
@@ -103,7 +103,6 @@ class LearningAgent:
         return distance
 
     def calculate_reward(self, done, lives, hit_wall, hit_ghost, action, prev_score):
-
         reward = 0
         if done:
             if lives > 0:
@@ -123,21 +122,16 @@ class LearningAgent:
             return reward
         if self.score - prev_score >= 200:
             return 12
-        # if hit_wall:
-        #     reward -= 10
+        if hit_wall:
+            reward -= 10
         if hit_ghost:
-            reward -= 20
+            reward -= 30
         if REVERSED[self.last_action] == action:
-            print(action, self.last_action)
-            self.loop_action_counter += 1
-        else:
-            self.loop_action_counter = 0
-        if self.loop_action_counter > 1:
-            reward -= 3
-            print("why the fuck")
+            reward -= 1
+        reward -= 4
         return reward
 
-    def optimize_model(self):
+    def learn(self):
         if len(self.memory) < BATCH_SIZE:
             return
         self.counter += 1
@@ -164,26 +158,22 @@ class LearningAgent:
         if self.steps % TARGET_UPDATE == 0:
             self.target.load_state_dict(self.policy.state_dict())
 
-    def select_action(self, state, eval=False):
+    def act(self, state, eval=False):
         if eval:
             with torch.no_grad():
                 q_values = self.policy(state)
-            # Optimal action
             vals = q_values.max(1)[1]
             return vals.view(1, 1)
         sample = random.random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
+        epsilon = self.eps_end + (self.eps_start - self.eps_end) * \
             math.exp(-1. * self.counter / self.eps_decay)
-        # display.data.q_values.append(q_values.max(1)[0].item())
         self.steps += 1
-        if sample > eps_threshold:
+        if sample > epsilon:
             with torch.no_grad():
                 q_values = self.policy(state)
-            # Optimal action
             vals = q_values.max(1)[1]
             return vals.view(1, 1)
         else:
-            # Random action
             action = random.randrange(N_ACTIONS)
             while action == REVERSED[self.last_action]:
                 action = random.randrange(N_ACTIONS)
@@ -259,37 +249,52 @@ class LearningAgent:
         self.episode += 1
         lives = 3
         random_action = random.choice([0, 1, 2, 3])
-        obs, self.score, done, remaining_lives, invalid_move = self.game.step(
+        obs, self.score, info = self.game.step(
             random_action)
         state = self.process_state(obs)
         last_score = 0
         self.score = 0
         while True:
-            action = self.select_action(state)
-            action_t = action.item()
+            action_tensor = self.act(state)
+            action = action_tensor.item()
             for i in range(3):
-                if not done:
-                    obs, self.score, done, remaining_lives, invalid_move = self.game.step(
-                        action_t)
-                    if lives != remaining_lives:
+                if not info.done:
+                    obs,self.score, info = self.game.step(
+                        action)
+                    if lives != info.lives:
                         break
                 else:
                     break
             hit_ghost = False
-            if lives != remaining_lives:
+            if lives != info.lives:
                 hit_ghost = True
                 lives -= 1
             next_state = self.process_state(obs)
             reward_ = self.calculate_reward(
-                done, lives, invalid_move, hit_ghost, action_t, last_score)
+                info.done, lives, info.invalid_move, hit_ghost, action, last_score)
             last_score = self.score
-            self.memory.append(state, action,
-                               torch.tensor([reward_], device=device), next_state, done)
+            self.memory.append(state, action_tensor,
+                               torch.tensor([reward_], device=device), next_state, info.done)
             state = next_state
             if self.steps % 2 == 0:
-                self.optimize_model()
-            self.last_action = action_t
-            if done:
+                self.learn()
+            self.last_action = action
+            if info.done:
+                current_lr = self.optimizer.param_groups[0]["lr"]
+                epsilon = self.eps_end + (self.eps_start - self.eps_end) * \
+                    math.exp(-1. * self.counter / self.eps_decay)
+                print(
+                    "epsilon",
+                    round(epsilon, 3),
+                    "reward",
+                    self.score,
+                    "learning rate",
+                    current_lr,
+                    "episode",
+                    self.episode,
+                    "steps",
+                    self.steps
+                )
                 # assert reward_sum == reward
                 self.rewards.append(self.score)
                 self.plot_rewards(avg=10)
@@ -309,7 +314,7 @@ class LearningAgent:
                 random_action)
             state = self.process_state(obs)
             while True:
-                action = self.select_action(state, eval=True)
+                action = self.act(state, eval=True)
                 action_t = action.item()
                 print("action", action_t)
                 for i in range(3):
@@ -338,5 +343,5 @@ if __name__ == '__main__':
     agent = LearningAgent()
     agent.rewards = []
     while True:
-        #agent.train()
-        agent.test()
+        agent.train()
+        #agent.test()
