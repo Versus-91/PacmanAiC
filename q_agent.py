@@ -300,7 +300,7 @@ class LearningAgent:
 
     def test(self, episodes=10):
         if self.episode < episodes:
-            self.load_model(name="400-250134")
+            self.load_model(name="400-250134",eval=True)
             obs = self.game.start()
             self.episode += 1
             lives = 3
@@ -336,7 +336,6 @@ class LearningAgent:
 
 if __name__ == '__main__':
     agent = LearningAgent()
-    #agent.load_model(name="100-49804",)
     agent.rewards = []
     while True:
         #agent.train()
