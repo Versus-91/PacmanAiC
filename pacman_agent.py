@@ -330,7 +330,7 @@ class PacmanAgent:
                 action_t = action.item()
                 for i in range(3):
                     if not done:
-                        obs, reward, done, _ = self.game.step(action_t)
+                        obs, reward, done, info = self.game.step(action_t)
                     else:
                         break
                 self.buffer.append(obs)
