@@ -6,17 +6,14 @@ w = col*cellw #SCREENWIDTH
 h =row * cellh #SCREENHEIGHT = NROWS*TILEHEIGHT
 screen = (w,h)
 #SCREENSIZE = (SCREENWIDTH, SCREENHEIGHT)
-#screen_color = (0, 0, 0)
 
-#pacman_col = (255, 255, 0)
+stop = 0
+up = 1 
+down =-1 
+left = 2 
+right =-2 
 
-stop = 0#STOP = 0
-up = 1 #UP = 1 #
-down =-1 #DOWN = -1
-left = 2 #LEFT = 2
-right =-2 #RIGHT = -2
-
-pacman=0#PACMAN = 0
+pacman=0
 SCATTER = 0
 CHASE = 1
 FREIGHT = 2
@@ -27,13 +24,17 @@ blinky = 4
 pinky = 5
 inky = 6
 clyde = 7
+
 import numpy as np
 import pygame
 from pygame.locals import *
 from new_ver.pacman import mypacman 
 from new_ver.nodes import NodeGroup,PelletGroup
 from new_ver.ghost import GhostGroup
-#from constants import * Everything above
+player_images =[]
+for i in range (1,5):
+    player_images.append(pygame.transform.scale(pygame.image.load(f'assets/player_images/{i}.png'),(cellw/2,cellw/2)))
+
 class GameState:
     def __init__(self):
         self.lives = 0
@@ -52,6 +53,36 @@ class GameController(object):
         self.won=False
         self.lost=False
         self.score = 0
+        
+        self.timer=0
+        self.font=pygame.font.Font('freesansbold.ttf', 20)
+        
+        self.counter=0
+        self.level_map="map.txt"
+        
+    def draw_misc(self):
+        score_text = self.font.render(f'Score:{self.score}',True,'white')
+        self.screen.blit(score_text,(10,h-20))
+        if self.ghosts.pinky.mode.current == FREIGHT or self.ghosts.inky.mode.current == FREIGHT or self.ghosts.clyde.mode.current == FREIGHT or self.ghosts.blinky.mode.current == FREIGHT:
+            
+            pygame.draw.circle(self.screen,'yellow',(140,h-15),cellw*2/3)   #powerup is active
+            #print("powerup")
+        for i in range(self.lives):
+            self.screen.blit(pygame.transform.scale(player_images[0],(cellw,cellh)),(w-180+i*40,h-20))
+        if self.lost:
+            pygame.draw.rect(self.screen,'white',[w/4-20,h/4,w/2+25,h/2],0,10 )
+            pygame.draw.rect(self.screen,'black',[w/4-5,h/4+15,w/2,h/2-30],0,10 )
+            menu_text=self.font.render('You lost!',True,'red')
+            self.screen.blit(menu_text,(w/4,h/2))
+            #print("lost")
+        if self.won:
+            pygame.draw.rect(self.screen,'white',[w/4-20,h/4,w/2+25,h/2],0,10 )
+            pygame.draw.rect(self.screen,'black',[w/4-5,h/4+15,w/2,h/2-30],0,10 )
+            menu_text=self.font.render('You won!',True,'green')
+            self.screen.blit(menu_text,(w/4,h/2))
+            #print("won")
+            
+    
     def showEntities(self):
         self.pacman.visible = True
         self.ghosts.show()
@@ -59,13 +90,7 @@ class GameController(object):
     def end(self):
         self.pacman.visible = False
         self.ghosts.hide()
-    def nextLevel(self):
-        self.won=False
-        self.lost=False
-        self.level += 1
-        #self.pause.paused = True
-        self.showEntities()
-        self.startGame()
+
 
     def restartGame(self):
         self.won=False
@@ -73,15 +98,36 @@ class GameController(object):
         self.lives = 3
         self.level = 0
         self.score = 0
-        #self.pause.paused = True
-        #self.fruit = None
+        
         self.startGame()
-
+    def nextLevel(self):
+        timer=0
+        self.pacman.visible = False
+        self.ghosts.hide()
+        
+        self.level+=1
+        self.won=False
+        self.level_map="maze1.txt"
+        self.nodes = NodeGroup(self.level_map)
+        self.nodes.setPortalPair((0,17), (27,17))# change numbers to letters
+        box = self.nodes.createHomeNodes(11.5, 14)
+        self.nodes.connectHomeNodes(box, (12,14), left)
+        self.nodes.connectHomeNodes(box, (15,14), right)
+        self.pellets = PelletGroup(self.level_map)
+        
+        self.eatenPellets = []
+        self.nodes.default_color='red'
+        
+        self.pacman = mypacman(self.nodes.getNodeFromTiles(15, 23))
+        self.ghosts.blinky.setStartNode(self.nodes.getNodeFromTiles(2, 8))
+        self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(2+11.5, 3+14))
+        self.ghosts.inky.setStartNode(self.nodes.getNodeFromTiles(0+11.5, 3+14))
+        self.ghosts.clyde.setStartNode(self.nodes.getNodeFromTiles(4+11.5, 3+14))
     def resetLevel(self):
-        #self.pause.paused = True
+       
         self.pacman = mypacman(self.nodes.getNodeFromTiles(15, 26))
         self.ghosts.reset()
-        #self.fruit = None
+        
         
     def setBackground(self):
         self.background = pygame.surface.Surface(screen).convert()
@@ -90,15 +136,15 @@ class GameController(object):
     def startGame(self):
         
         self.setBackground()
-        self.nodes = NodeGroup("map.txt")
+        self.nodes = NodeGroup(self.level_map)
         self.nodes.setPortalPair((0,17), (27,17))# change numbers to letters
         box = self.nodes.createHomeNodes(11.5, 14)
         self.nodes.connectHomeNodes(box, (12,14), left)
         self.nodes.connectHomeNodes(box, (15,14), right)
-        self.pellets = PelletGroup("map.txt")
-        self.pacman = mypacman(self.nodes.getNodeFromTiles(15, 23))
+        self.pellets = PelletGroup(self.level_map)
+        self.pacman = mypacman(self.nodes.getNodeFromTiles(15, 26))
         self.ghosts = GhostGroup(self.nodes.getStartTempNode(), self.pacman )   
-        self.ghosts.blinky.setStartNode(self.nodes.getNodeFromTiles(2, 10))
+        self.ghosts.blinky.setStartNode(self.nodes.getNodeFromTiles(1, 4))
         self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(2+11.5, 3+14))
         self.ghosts.inky.setStartNode(self.nodes.getNodeFromTiles(0+11.5, 3+14))
         self.ghosts.clyde.setStartNode(self.nodes.getNodeFromTiles(4+11.5, 3+14))
@@ -111,18 +157,17 @@ class GameController(object):
         self.nodes.denyHomeAccessList(self.ghosts)
         self.nodes.denyAccessList(2+11.5, 3+14, left, self.ghosts)
         self.nodes.denyAccessList(2+11.5, 3+14, right, self.ghosts)
-        #self.ghosts.inky.startNode.denyAccess(right, self.ghosts.inky)
-        #self.ghosts.clyde.startNode.denyAccess(left, self.ghosts.clyde)
+        
         self.nodes.denyAccessList(12, 14, up, self.ghosts)
         self.nodes.denyAccessList(15, 14, up, self.ghosts)
         self.nodes.denyAccessList(12, 26, up, self.ghosts)
         self.nodes.denyAccessList(15, 26, up, self.ghosts)
-
+        #self.draw_misc()
         
     def updateScore(self, points):
         self.score += points        
     def update(self): #remove time later !
-        time = self.clock.tick(30) / 1000.0 #dt
+        time = self.clock.tick(30) / 1000.0 
         self.pacman.update()  #remove time?
         self.pellets.update(time)
         self.checkEvents()
@@ -131,6 +176,10 @@ class GameController(object):
         self.ghosts.update(time)
         self.render()
         self.get_frame()
+        if self.counter < 19: #spped of eating my pacman 
+            self.counter += 1
+        else:
+            self.counter=0
     def get_frame(self):
         raw_maze_data = []
         with open('map.txt', 'r') as f:
@@ -140,7 +189,7 @@ class GameController(object):
         self.state = np.zeros(raw_maze_data.shape)
         for idx, values in enumerate(raw_maze_data):
             for id, value in enumerate(values):
-                if value in ['9', '=', 'X']:
+                if value in ['9', '=', 'X','3','4','5','6','7','8']:
                     self.state[idx][id] = 1
         # for idx, pellet in enumerate(self.eatenPellets):
         #     x = int(pellet.position.x / 16)
@@ -198,12 +247,15 @@ class GameController(object):
             self.updateScore(dot.points)
             self.pellets.pelletList.remove(dot)
             #print("remain dots",len(self.pellets.pelletList))
+            if len(self.pellets.pelletList) < 15:
+                self.ghosts.pinky.gets_angry(self.counter)
             if dot.name == powerdot:
-                   self.ghosts.startFreight()
+                self.ghosts.startFreight()
+                
             if self.pellets.isEmpty():
                 self.end()
                 self.won=True
-                #self.nextLevel
+                #self.nextLevel()
 
     def checkGhostEvents(self):
         for ghost in self.ghosts:                        
@@ -235,11 +287,13 @@ class GameController(object):
                 
 
     def render(self):
+        
         self.screen.blit(self.background, (0, 0))
-        self.nodes.render(self.screen)
+        self.nodes.render(self.screen,self.level_map)
         self.pellets.render(self.screen)
-        self.pacman.draw(self.screen)
-        self.ghosts.render(self.screen)
+        self.pacman.draw(self.screen,self.counter)
+        self.ghosts.render(self.screen,self.counter)
+        self.draw_misc()
         pygame.display.update()
         
         

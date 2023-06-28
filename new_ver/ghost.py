@@ -26,13 +26,31 @@ blinky = 4
 pinky = 5
 inky = 6
 clyde = 7
+
+blinky_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/red.png'),(cellw*4/3,cellh*4/3))
+#inky
+inky_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/blue.png'),(cellw*4/3,cellh*4/3))
+#pinky
+pinky_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/pink.png'),(cellw*4/3,cellh*4/3))
+#clyde
+clyde_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/orange.png'),(cellw*4/3,cellh*4/3))
+
+poweredup=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/powerup.png'),(cellw*4/3,cellh*4/3))
+#dead=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/dead.png'),(cellw*4/3,cellh*4/3))
+dead0=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/dead0.png'),(cellw*4/3,cellh*4/3))
+dead =[]
+for i in range (0,4):
+    dead.append(pygame.transform.scale(pygame.image.load(f'assets/ghost_images/{i}.png'),(cellw*2,cellw*2)))
+    
+pac0=pygame.transform.scale(pygame.image.load(f'assets/player_images/{0}.png'),(cellw*4/3,cellw*4/3))
+
 class Ghost(object):
     def __init__(self, node,pacman=None,blinky=None):
         self.name = None
         self.directions = {stop:Vectors(),left:Vectors(-1,0), right:Vectors(1,0), up:Vectors(0,-1), 
                            down:Vectors(0,1) }
         self.direction = stop
-        self.setSpeed(5)
+        self.setSpeed(4)
         self.radius = 10
         self.collideRadius = 5
         self.color = 'blue'
@@ -184,16 +202,32 @@ class Ghost(object):
         self.visible = True  
         self.points = 200
         self.directionMethod = self.goalDirection
-    def render(self, screen):
+    def render(self, screen,img,counter):
         if self.visible:
             p = self.position.asInt()
-            pygame.draw.circle(screen, self.color, p, self.radius)
+            #pygame.draw.circle(screen, self.color, p, self.radius)
+            if not self.get_angry:
+                if self.mode.current == FREIGHT :
+                    screen.blit(poweredup,(p[0]-cellw/2,p[1]-cellh/2))
+                elif self.mode.current == SPAWN:
+                    screen.blit(dead0,(p[0]-cellw/2,p[1]-cellh/2))
+                else:
+                    screen.blit(img,(p[0]-cellw/2,p[1]-cellh/2))
+            else:
+                if self.mode.current == FREIGHT :
+                    screen.blit(poweredup,(p[0]-cellw/2,p[1]-cellh/2))
+                else:
+                    screen.blit(dead [counter // 5],(p[0]-cellw,p[1]-cellh))
+                
+                
             
 class Blinky(Ghost):
     def __init__(self, node, pacman=None, blinky=None):
         Ghost.__init__(self, node, pacman, blinky)
         self.name =clyde
         self.color = 'green'
+        self.img=blinky_img
+        self.get_angry=False
     def scatter(self):
         self.goal = Vectors()
 
@@ -204,6 +238,8 @@ class Clyde(Ghost):
         Ghost.__init__(self, node, pacman, blinky)
         self.name = clyde
         self.color = 'orange'
+        self.img=clyde_img
+        self.get_angry=False
 
     def scatter(self):
         self.goal = Vectors(0, h)
@@ -221,10 +257,17 @@ class Pinky(Ghost):
         Ghost.__init__(self, node, pacman, blinky)
         self.name = pinky
         self.color = 'pink'
+        self.img=pinky_img
+        self.get_angry=False
 
     def scatter(self):
         self.goal = Vectors(w, 0)
-
+    def gets_angry(self,counter):
+        self.get_angry=True
+        self.setSpeed(6)
+        self.img=dead [counter // 5]
+        self.radius=15
+        self.goal = self.pacman.position
     def chase(self):
         self.goal = self.pacman.position + self.pacman.directions[self.pacman.direction] * cellw * 5
 class Inky(Ghost):
@@ -232,6 +275,8 @@ class Inky(Ghost):
         Ghost.__init__(self, node, pacman, blinky)
         self.name = inky
         self.color = 'blue'
+        self.img=inky_img
+        self.get_angry=False
 
     def scatter(self):
         self.goal = Vectors(w, h) # 
@@ -285,6 +330,6 @@ class GhostGroup(object):
         for ghost in self:
             ghost.visible = True
 
-    def render(self, screen):
+    def render(self, screen,counter):
         for ghost in self:
-            ghost.render(screen)
+            ghost.render(screen,ghost.img,counter)

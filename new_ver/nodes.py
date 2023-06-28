@@ -1,11 +1,7 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
 import numpy as np
 import pygame
 from new_ver.vector import Vectors
+import math
 #from constants import *
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -62,11 +58,13 @@ class NodeGroup(object):
         self.createNodeTable(data)
         self.connectHorizontally(data)
         self.connectVertically(data)
+        self.default_color='blue'
+        self.pi=math.pi
 
     def read_map(self, textfile):#readMazeFile
         return np.loadtxt(textfile, dtype='<U1')
     
-    def createNodeTable(self, data,x1=0, y1=0):  #xoffset
+    def createNodeTable(self, data,x1=0, y1=0):  
         for i in list(range(data.shape[0])):
             for j in list(range(data.shape[1])):
                 if data[i][j] in self.allnode:
@@ -170,10 +168,49 @@ class NodeGroup(object):
     def allowHomeAccessList(self, entities):
         for entity in entities:
             self.allowHomeAccess(entity) 
-    def render(self, screen):
-        for i in self.cell.values():
-            if i.neighbors[portal] ==  None:  # here ! we dont draw portal node
-                i.draw(screen)
+            
+            
+            
+            
+            # 0 = empty black rectangle, 1 = dot, 2 = big dot, 3 = vertical line,
+# 4 = horizontal line, 5 = top right, 6 = top left, 7 = bot left, 8 = bot right
+# 9 = gate
+ 
+        
+    def render(self, screen,level=None):
+        data=self.read_map(level)
+        for i in list(range(data.shape[0])):
+            for j in list(range(data.shape[1])):
+                
+
+                if data[i][j] == '3':
+                    
+                    pygame.draw.line(screen, self.default_color, (j * cellw ,
+                                                                           i * cellh-0.5*cellh), (j * cellw , i * cellh + cellh-0.5*cellh), 3)
+                    
+                if data[i][j] == '4':
+                    pygame.draw.line(screen, self.default_color, (j * cellw- 0.5*cellw, i * cellh ), (j * cellw + 0.5*cellw, i * cellh + 0.5 *cellh-0.5*cellh), 3)
+
+                if data[i][j] == '5':
+                    pygame.draw.arc(screen, self.default_color, [(j * cellw - cellw), i * cellh , cellw, cellh], 0, self.pi/2, 3)    
+                if data[i][j] == '6':
+                    pygame.draw.arc(screen, self.default_color, [(j * cellw ), i * cellh , cellw, cellh], self.pi/2, self.pi, 3)
+                if data[i][j] == '7':
+                    pygame.draw.arc(screen, self.default_color, [(j * cellw ), i * cellh - cellh, cellw, cellh], self.pi, 3*self.pi/2, 3)
+                if data[i][j] == '8':
+                    pygame.draw.arc(screen, self.default_color, [(j * cellw - cellw), i *cellh - cellh, cellw, cellh], 3*self.pi/2, self.pi*2, 3)
+
+                if data[i][j] == '9':
+                    pygame.draw.line(screen, 'white', (j * cellw- 0.5*cellw, i * cellh ), (j * cellw + 0.5*cellw, i * cellh + 0.5 *cellh-0.5*cellh), 3)
+
+        
+
+                
+                
+     #   for i in self.cell.values():
+      #      if i.neighbors[portal] ==  None:  # here ! we dont draw portal node
+       #         i.draw(screen)
+                
        
     def setPortalPair(self, pair1, pair2):
         key1 = self.getKey(*pair1)
@@ -248,8 +285,3 @@ class PelletGroup(object):
         for pellet in self.pelletList:
             pellet.render(screen)
             
-# In[ ]:
-
-
-
-
