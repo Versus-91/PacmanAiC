@@ -336,8 +336,8 @@ class PacmanAgent:
                 state = self.process_state(self.buffer)
                 if done:
                     self.rewards.append(reward)
-                    #self.plot_rewards(name="test.png",items=self.rewards, avg=2)
-                    self.writer.add_scalar('episode reward', reward, global_step=self.episode)
+                    self.plot_rewards(name="test.png",items=self.rewards, avg=2)
+                    #self.writer.add_scalar('episode reward', reward, global_step=self.episode)
                     time.sleep(1)
                     self.game.restart()
                     torch.cuda.empty_cache()

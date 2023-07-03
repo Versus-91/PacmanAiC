@@ -74,9 +74,9 @@ class mypacman(object): #Pacman
             return down
         return stop
     
-    def update(self):	
+    def update(self,action = None):	
         self.position += self.directions[self.direction]*self.speed#*time #remove time?
-        direction = self.key()
+        direction = self.key() if action is None else action
         if self.overshotTarget():
             self.node = self.target
             if self.node.neighbors[portal] is not None:

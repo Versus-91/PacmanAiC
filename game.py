@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
 from PIL import Image
 
-from run_new import GameController
+from run import GameController
 
 
 class GameWrapper:
