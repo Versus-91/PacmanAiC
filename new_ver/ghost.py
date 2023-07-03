@@ -120,14 +120,15 @@ class Ghost(object):
 
     def setSpeed(self, speed):
         self.speed = speed * cellw / 16
+    
+    
     def update(self):
         self.position += self.directions[self.direction]*self.speed#*dt
          
         if self.overshotTarget():
             self.node = self.target
             directions = self.validDirections()
-            direction = self.randomDirection(directions) 
-            #direction = self.directionMethod(directions)
+            direction = self.directionMethod(directions)
             if not self.disablePortal:
                 if self.node.neighbors[portal] is not None:
                     self.node = self.node.neighbors[portal]
@@ -138,6 +139,9 @@ class Ghost(object):
                 self.target = self.getNewTarget(self.direction)
 
             self.setPosition()
+
+
+
     def update_mode(self, dt):
         self.mode.update(dt)
         if self.mode.current is SCATTER:
@@ -170,12 +174,16 @@ class Ghost(object):
     def setSpawnNode(self, node):
         self.spawnNode = node
 
+
     def startSpawn(self):
         self.mode.setSpawnMode()
         if self.mode.current == SPAWN:
-            self.setSpeed(150)
+            self.setSpeed(10)
             self.directionMethod = self.goalDirection
-            self.spawn()  
+            self.spawn()
+              
+
+
     def validDirections(self):
         directions = []
         for key in [up, down, left, right]:
@@ -195,13 +203,19 @@ class Ghost(object):
             distances.append(vec.magnitudeSquared())
         index = distances.index(min(distances))
         return directions[index]
+    
+
+
     def reset(self):
         self.setStartNode(self.startNode)
         self.direction = stop
         self.speed = 5
         self.visible = True  
         self.points = 200
-        self.directionMethod = self.goalDirection
+        self.goal = Vectors()  # Reset the goal as well
+
+
+
     def render(self, screen,img,counter):
         if self.visible:
             p = self.position.asInt()
@@ -224,7 +238,7 @@ class Ghost(object):
 class Blinky(Ghost):
     def __init__(self, node, pacman=None, blinky=None):
         Ghost.__init__(self, node, pacman, blinky)
-        self.name =clyde
+        self.name =4
         self.color = 'green'
         self.img=blinky_img
         self.get_angry=False
@@ -309,6 +323,7 @@ class GhostGroup(object):
     def setSpawnNode(self, node):
         for ghost in self:
             ghost.setSpawnNode(node)
+
 
     def updatePoints(self):
         for ghost in self:

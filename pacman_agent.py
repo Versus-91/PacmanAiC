@@ -22,7 +22,6 @@ N_ACTIONS = 4
 BATCH_SIZE = 128
 SAVE_EPISODE_FREQ = 100
 GAMMA = 0.99
-MOMENTUM = 0.95
 sync_every = 100
 Experience = namedtuple(
     "Experience", field_names=["state", "action", "reward", "done", "new_state"]
@@ -349,8 +348,8 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    #agent.load_model(name="1200-511012", eval=True)
+    agent.load_model(name="1500-483756", eval=True)
     agent.rewards = []
     while True:
-        agent.train()
-        #agent.test()
+        #agent.train()
+        agent.test()

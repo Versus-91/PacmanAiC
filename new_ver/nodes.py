@@ -284,4 +284,3 @@ class PelletGroup(object):
     def render(self, screen):
         for pellet in self.pelletList:
             pellet.render(screen)
-            

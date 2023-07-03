@@ -1,4 +1,3 @@
-
 import math
 class Vectors(object):
     def __init__(self, x=0, y=0):
@@ -45,5 +44,3 @@ class Vectors(object):
 
     def asInt(self):#rename
         return int(self.x), int(self.y)
-    
-

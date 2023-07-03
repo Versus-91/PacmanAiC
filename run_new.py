@@ -261,7 +261,7 @@ class GameController(object):
         for ghost in self.ghosts:                        
             if self.pacman.collideGhost(ghost):
                 if ghost.mode.current is FREIGHT:
-                    ghost.visible = False
+                    # ghost.visible = False
                     self.updateScore(ghost.points)
                     self.nodes.allowHomeAccess(ghost)
                     ghost.startSpawn()    
@@ -272,7 +272,7 @@ class GameController(object):
                             self.ghosts.hide()
                             if self.lives <= 0:
                                 self.lost=True
-                                #self.restartGame()
+                                self.restartGame()
                             else:
                                  self.resetLevel()
 

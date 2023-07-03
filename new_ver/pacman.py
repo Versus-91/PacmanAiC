@@ -1,4 +1,3 @@
-
 import pygame
 from pygame.locals import *
 from new_ver.vector import Vectors
@@ -134,7 +133,8 @@ class mypacman(object): #Pacman
     def collide(self, other):
         d = self.position - other.position
         dSquared = d.magnitudeSquared()
-        rSquared = (self.radius + other.radius)**2
+        #rSquared = (self.radius + other.radius)**2
+        rSquared = (self.radius)**2
         if dSquared <= rSquared:
             return True
         return False
@@ -162,4 +162,3 @@ class mypacman(object): #Pacman
         if  self.direction == 0:#stop
             screen.blit(pac0,(p[0]-cellw/2,p[1]-cellh/2))
         
-
