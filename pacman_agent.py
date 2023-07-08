@@ -118,10 +118,12 @@ class PacmanAgent:
             if -6 in (n1, n2, n3, n4):
                 reward -= 30
             elif 3 in (n1, n2, n3, n4):
-                reward += 1 + progress
+                reward += 1.5
             elif 4 in (n1, n2, n3, n4):
-                reward += 3 + progress
+                reward += 3
         reward = round(reward, 2)
+        reward -= 1
+        print(reward)
         return reward
 
     def write_matrix(self, matrix):
