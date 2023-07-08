@@ -173,7 +173,7 @@ class PacmanAgent:
         if eval:
             with torch.no_grad():
                 q_values = self.policy(state)
-            return torch.argmax(q_values,dim=1)
+            return torch.argmax(q_values)
         rand = random.random()
         epsilon = max(
             EPS_END, EPS_START - (EPS_START - EPS_END) * (self.steps) / EPS_DECAY
@@ -182,6 +182,8 @@ class PacmanAgent:
         if rand > epsilon:
             with torch.no_grad():
                 outputs = self.policy(state)
+            res = torch.argmax(outputs)
+            print("predicted action", res.item())
             return torch.argmax(outputs)
 
         else:
@@ -347,8 +349,7 @@ class PacmanAgent:
             while True:
                 action = self.act(state, eval=True)
                 action_t = action.item()
-                print(action_t)
-                for i in range(2):
+                for i in range(3):
                     if not done:
                         obs, reward, done, info = self.game.step(action_t)
                     else:
@@ -368,8 +369,8 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    agent.load_model(name="300-226590", eval=True)
+    agent.load_model(name="400-298452", eval=False)
     agent.rewards = []
     while True:
-        #agent.train()
-        agent.test()
+        agent.train()
+        #agent.test()
