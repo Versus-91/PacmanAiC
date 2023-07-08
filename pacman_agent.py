@@ -28,8 +28,8 @@ Experience = namedtuple(
 )
 
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
-EPS_START = 1.0
-EPS_END = 0.1
+EPS_START = 0.9
+EPS_END = 0.05
 EPS_DECAY = 500000
 MAX_STEPS = 600000
 
@@ -69,7 +69,7 @@ class PacmanAgent:
         self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=0.8)
         self.losses = []
     def calculate_reward(
-        self, done, lives, hit_ghost, action, prev_score, info: GameState, state
+        self, done, lives, hit_ghost, action, prev_score, info: GameState
     ):
         reward = 0
         time_penalty = -0.01
@@ -97,20 +97,20 @@ class PacmanAgent:
             reward -= 30
         reward += time_penalty
         reward += movement_penalty
-        index = np.where(state == 5)
+        index = np.where(info.frame == 5)
         if len(index[0]) != 0:
             x = index[0][0]
             y = index[1][0]
             try:
-                n1 = state[x + 1][y]
-                n2 = state[x - 1][y]
+                n1 = info.frame[x + 1][y]
+                n2 = info.frame[x - 1][y]
             except IndexError:
                 n1 = 0
                 n2 = 0
                 print("x",index[0][0],"y",index[1][0])
             try:
-                n3 = state[x][y + 1]
-                n4 = state[x][y - 1]
+                n3 = info.frame[x][y + 1]
+                n4 = info.frame[x][y - 1]
             except IndexError:
                 n3 = 0
                 n4 = 0
@@ -123,7 +123,7 @@ class PacmanAgent:
                 reward += 3
         reward = round(reward, 2)
         reward -= 1
-        print(reward)
+        #print(reward)
         return reward
 
     def write_matrix(self, matrix):
@@ -238,13 +238,13 @@ class PacmanAgent:
         obs = self.game.start()
         self.episode += 1
         random_action = random.choice([0, 1, 2, 3])
-        # obs, self.score, done, info = self.game.step(random_action)
-        # state = self.process_state(obs)
+        obs, self.score, done, info = self.game.step(random_action)
+        state = self.process_state(obs)
         # state = torch.tensor(obs).float().to(device)
-        for i in range(6):
-            obs, self.score, done, info = self.game.step(random_action)
-            self.buffer.append(obs)
-        state = self.process_state(self.buffer)
+        # for i in range(6):
+        #     obs, self.score, done, info = self.game.step(random_action)
+        #     self.buffer.append(obs)
+        # state = self.process_state(self.buffer)
         last_score = 0
         lives = 3
         reward_total = 0
@@ -267,11 +267,12 @@ class PacmanAgent:
                 if not done:
                     for i in range(3):
                         _, _, _, _ = self.game.step(action_t)
-            # next_state = torch.tensor(obs).float().to(device)
-            next_state = self.process_state(self.buffer)
+            #next_state = torch.tensor(obs).float().to(device)
+            #next_state = self.process_state(self.buffer)
+            next_state = self.process_state(obs)
 
             reward_ = self.calculate_reward(
-                done, lives, hit_ghost, action_t, last_score, info, obs
+                done, lives, hit_ghost, action_t, last_score, info
             )
             reward_total += reward_
             last_score = self.score

@@ -39,6 +39,7 @@ direction_vals = {
 class GameState:
     def __init__(self):
         self.lives = 0
+        self.frame = []
         self.invalid_move = False
         self.total_pellets = 0
         self.collected_pellets = 0
@@ -200,7 +201,8 @@ class GameController(object):
             self.checkPelletEvents()
             self.checkGhostEvents()
             self.checkFruitEvents()
-
+        state = self.get_state()
+        frame = self.get_frame()
         if self.pacman.alive:
             if not self.pause.paused:
                 self.pacman.update(dt, action)
@@ -220,13 +222,13 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        state = self.get_frame()
         info = GameState()
         info.lives = self.lives
         info.invalid_move = invalid_move
         info.total_pellets = len(
             self.pellets.pelletList) + len(self.eatenPellets)
         info.collected_pellets = len(self.eatenPellets)
+        info.frame = frame
         return (state, self.score, self.lives == 0 or (self.pellets.isEmpty()), info)
 
     def checkEvents(self):
@@ -299,7 +301,7 @@ class GameController(object):
             elif ghost[1].mode.current is FREIGHT:
                 ghosts[y][x] = self.direction_state(ghost[1].direction)
 
-        return [walls[7:28, :], pellets[7:28, :], pacman[7:28, :], ghosts[7:28, :]]
+        return [walls[3:34, :], pellets[3:34, :], pacman[3:34, :], ghosts[3:34, :]]
 
     def find_pellet(self, pellet: Pellet) -> bool:
         for i, item in enumerate(self.pellets.pelletList):
