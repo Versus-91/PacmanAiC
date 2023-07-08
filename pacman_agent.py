@@ -72,8 +72,6 @@ class PacmanAgent:
         self, done, lives, hit_ghost, action, prev_score, info: GameState
     ):
         reward = 0
-        time_penalty = -0.01
-        movement_penalty = -0.1
         progress = round((info.collected_pellets / info.total_pellets) * 10)
         if done:
             if lives > 0:
@@ -83,7 +81,7 @@ class PacmanAgent:
                 reward = -50
             return reward
         if self.score - prev_score == 10:
-            reward += 1
+            reward += 2
         if self.score - prev_score == 50:
             print("power up")
             reward += 5
@@ -91,35 +89,44 @@ class PacmanAgent:
             reward += progress
         if self.score - prev_score >= 200:
             reward += 20 * ((self.score - prev_score) / 200)
-        if info.invalid_move:
-            reward -= 1
         if hit_ghost:
             reward -= 30
-        reward += time_penalty
-        reward += movement_penalty
         index = np.where(info.frame == 5)
         if len(index[0]) != 0:
             x = index[0][0]
             y = index[1][0]
             try:
-                n1 = info.frame[x + 1][y]
-                n2 = info.frame[x - 1][y]
+                upper_cell = info.frame[x + 1][y]
+                lower_cell = info.frame[x - 1][y]
             except IndexError:
-                n1 = 0
-                n2 = 0
+                upper_cell = 0
+                lower_cell = 0
                 print("x",index[0][0],"y",index[1][0])
             try:
-                n3 = info.frame[x][y + 1]
-                n4 = info.frame[x][y - 1]
+                right_cell = info.frame[x][y + 1]
+                left_cell = info.frame[x][y - 1]
             except IndexError:
-                n3 = 0
-                n4 = 0
+                right_cell = 0
+                left_cell = 0
                 print("x",index[0][0],"y",index[1][0])
-            if -6 in (n1, n2, n3, n4):
-                reward -= 30
-            elif 3 in (n1, n2, n3, n4):
+
+            if action == 0:
+                if upper_cell == 1:
+                    reward -= 10
+            elif action == 1:
+                if lower_cell == 1:
+                    reward -= 10
+            elif action == 2:
+                if left_cell == 1:
+                    reward -= 10
+            elif action == 3:
+                if right_cell == 1:
+                    reward -= 10
+            if -6 in (right_cell, left_cell, upper_cell, lower_cell):
+                reward -= 20
+            elif 3 in (right_cell, left_cell, upper_cell, lower_cell):
                 reward += 1.5
-            elif 4 in (n1, n2, n3, n4):
+            elif 4 in (right_cell, left_cell, upper_cell, lower_cell):
                 reward += 3
         reward = round(reward, 2)
         reward -= 1
@@ -238,13 +245,13 @@ class PacmanAgent:
         obs = self.game.start()
         self.episode += 1
         random_action = random.choice([0, 1, 2, 3])
-        obs, self.score, done, info = self.game.step(random_action)
-        state = self.process_state(obs)
-        # state = torch.tensor(obs).float().to(device)
-        # for i in range(6):
-        #     obs, self.score, done, info = self.game.step(random_action)
-        #     self.buffer.append(obs)
-        # state = self.process_state(self.buffer)
+        # obs, self.score, done, info = self.game.step(random_action)
+        #state = self.process_state(obs)
+        #state = torch.tensor(obs).float().to(device)
+        for i in range(4):
+            obs, self.score, done, info = self.game.step(random_action)
+            self.buffer.append(info.frame)
+        state = self.process_state(self.buffer)
         last_score = 0
         lives = 3
         reward_total = 0
@@ -258,7 +265,7 @@ class PacmanAgent:
                         break
                 else:
                     break
-            self.buffer.append(obs)
+            self.buffer.append(info.frame)
             hit_ghost = False
             if lives != info.lives:
                 # self.write_matrix(self.buffer)
@@ -268,8 +275,8 @@ class PacmanAgent:
                     for i in range(3):
                         _, _, _, _ = self.game.step(action_t)
             #next_state = torch.tensor(obs).float().to(device)
-            #next_state = self.process_state(self.buffer)
-            next_state = self.process_state(obs)
+            next_state = self.process_state(self.buffer)
+            #next_state = self.process_state(obs)
 
             reward_ = self.calculate_reward(
                 done, lives, hit_ghost, action_t, last_score, info
