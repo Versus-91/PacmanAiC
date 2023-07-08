@@ -58,7 +58,7 @@ class PacmanAgent:
         self.game = GameWrapper()
         self.lr = 0.001
         self.writer = SummaryWriter('logs/dqn')
-        self.last_action = 0
+        self.current_direction = 0
         self.buffer = deque(maxlen=4)
         self.last_reward = -1
         self.rewards = []
@@ -81,10 +81,10 @@ class PacmanAgent:
                 reward = -50
             return reward
         if self.score - prev_score == 10:
-            reward += 2
+            reward += 3
         if self.score - prev_score == 50:
             print("power up")
-            reward += 5
+            reward += 6
         if reward > 0:
             reward += progress
         if self.score - prev_score >= 200:
@@ -179,7 +179,7 @@ class PacmanAgent:
             return outputs.max(1)[1].view(1, 1)
         else:
             action = random.randrange(N_ACTIONS)
-            while action == REVERSED[self.last_action]:
+            while action == REVERSED[self.current_direction]:
                 action = random.randrange(N_ACTIONS)
             return torch.tensor([[action]], device=device, dtype=torch.long)
 
@@ -234,9 +234,23 @@ class PacmanAgent:
             name_parts = name.split("-")
             self.episode = int(name_parts[0])
             self.steps = int(name_parts[1])
+            scheduler_steps = round(self.steps // 100000)
+            for i in range(scheduler_steps):
+                self.scheduler.step()
             self.target.train()
             self.policy.train()
-
+    def map_direction(self,dir):
+        if dir == 1:
+            action = 0
+        elif dir == -1:
+            action = 1
+        elif dir == 2:
+            action = 2
+        elif dir == -2:
+            action = 3
+        else:
+            action = random.randrange(N_ACTIONS)
+        return action
     def train(self):
         if self.steps >= MAX_STEPS:
             self.save_model(force=True)
@@ -293,7 +307,7 @@ class PacmanAgent:
             )
             state = next_state
             self.learn()
-            self.last_action = action_t
+            self.current_direction = self.map_direction(info.direction)
             if self.steps % 100000 == 0:
                 self.scheduler.step()
             if done:
@@ -358,7 +372,7 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    #agent.load_model(name="1500-483756", eval=True)
+    agent.load_model(name="400-195112", eval=False)
     agent.rewards = []
     while True:
         agent.train()

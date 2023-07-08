@@ -43,6 +43,7 @@ class GameState:
         self.invalid_move = False
         self.total_pellets = 0
         self.collected_pellets = 0
+        self.direction = 0
 
 
 class GameController(object):
@@ -72,6 +73,7 @@ class GameController(object):
         self.mazedata = MazeData()
         self.state = []
         self.pacman_prev = Vector2()
+        self.last_dir = 0
         self.dist = 0
 
     def setBackground(self):
@@ -185,6 +187,73 @@ class GameController(object):
         self.checkEvents()
         self.render()
         state = self.get_frame()
+        s =self.extract_features(state)
+        self.last_dir = self.pacman.direction
+        print(s)
+
+    def manhattan(self,a, b):
+        return sum(abs(val1-val2) for val1, val2 in zip(a,b))
+    def extract_features(self,state):
+        max_path = 35
+        features = []
+        total_foods = len(
+            self.pellets.pelletList) + len(self.eatenPellets)
+        progress =(total_foods - len(self.eatenPellets)) / total_foods
+        features.append(progress)
+        pacman_x = int(round(self.pacman.position.x / 16))
+        pacman_y = int(round(self.pacman.position.y / 16))
+        closest_food_distance = 1000
+        closest_powerup_distance = 1000
+        for idx, pellet in enumerate(self.pellets.pelletList):
+            x = int(pellet.position.x / 16)
+            y = int(pellet.position.y / 16)
+            if pellet.name == 1:
+               food_pacman_distance = abs(pacman_x - x) + abs(pacman_y - y)
+               if food_pacman_distance < closest_food_distance:
+                                    closest_food_distance = food_pacman_distance
+            else:
+                powerup_pacman_distance = abs(pacman_x - x) + abs(pacman_y - y)
+                if powerup_pacman_distance < closest_powerup_distance:
+                                    closest_powerup_distance = powerup_pacman_distance
+        features.append((max_path - closest_food_distance) / max_path)
+        if closest_powerup_distance != 1000:
+            features.append((max_path - closest_powerup_distance) / max_path)
+        else:
+            features.append(-1)
+        closest_ghost_distance = 1000
+        closest_scare_ghost_distance = 1000
+        for ghost in enumerate(self.ghosts):
+            x = int(round(ghost[1].position.x / 16))
+            y = int(round(ghost[1].position.y / 16))
+            max = 0
+            
+            if ghost[1].mode.current is FREIGHT:
+                scared_ghost_pacman_distance = abs(pacman_x - x) + abs(pacman_y - y)
+                if scared_ghost_pacman_distance < closest_scare_ghost_distance:
+                    closest_scare_ghost_distance = scared_ghost_pacman_distance
+                if ghost[1].mode.timer > max :
+                    max = ghost[1].mode.timer
+            elif ghost[1].mode.current is CHASE or ghost[1].mode.current is SCATTER:
+                ghost_pacman_distance = abs(pacman_x - x) + abs(pacman_y - y)
+                if ghost_pacman_distance < closest_ghost_distance:
+                    closest_ghost_distance = ghost_pacman_distance
+        if max != 0 :
+            features.append(round(1 - (7 - max) / 7 , 3))
+        else:
+            features.append(0)
+        if closest_ghost_distance != 1000:
+            features.append(round((max_path - closest_ghost_distance) / max_path,3))
+        else:
+            features.append(-1)
+        if closest_scare_ghost_distance != 1000:
+            features.append(round((max_path - closest_scare_ghost_distance) / max_path,3))
+        else:
+            features.append(-1)
+        if self.pacman.direction == self.last_dir:
+            features.append(1)
+        elif self.pacman.direction != 0 and self.pacman.direction != None:
+            features.append(0)
+        return features
 
     def perform_action(self, action):
         state = None
@@ -222,13 +291,15 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
+        features = self.extract_features(frame)
         info = GameState()
         info.lives = self.lives
         info.invalid_move = invalid_move
         info.total_pellets = len(
             self.pellets.pelletList) + len(self.eatenPellets)
         info.collected_pellets = len(self.eatenPellets)
-        info.frame = frame
+        info.frame = features
+        info.direction = self.pacman.direction
         return (state, self.score, self.lives == 0 or (self.pellets.isEmpty()), info)
 
     def checkEvents(self):
