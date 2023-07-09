@@ -18,7 +18,11 @@ from game import GameWrapper
 import random
 import matplotlib
 from time import sleep
-matplotlib.use('Agg')
+from tensorboardX import SummaryWriter
+
+from run import GameState
+
+matplotlib.use("Agg")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
 BATCH_SIZE = 128
@@ -27,13 +31,17 @@ K_FRAME = 2
 SAVE_EPISODE_FREQ = 100
 
 
-Experience = namedtuple('Experience', field_names=[
-                        'state', 'action', 'reward', 'done', 'new_state'])
+Experience = namedtuple(
+    "Experience", field_names=["state", "action", "reward", "done", "new_state"]
+)
 
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
+EPS_DECAY = 500000
+MAX_STEPS = 600000
 is_reversed = (
-    lambda last_action, action: "default" if REVERSED[action] -
-    last_action else "reverse"
+    lambda last_action, action: "default"
+    if REVERSED[action] - last_action
+    else "reverse"
 )
 
 
@@ -59,7 +67,7 @@ class DQN(nn.Module):
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Linear(64, num_actions)
+            nn.Linear(64, num_actions),
         )
 
     def forward(self, x):
@@ -75,7 +83,7 @@ class LearningAgent:
         self.gamma = 0.99
         self.momentum = 0.95
         self.replay_size = 30000
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.00025
         self.steps = 0
         self.score = 0
         self.target = QNetwork().to(device)
@@ -90,20 +98,25 @@ class LearningAgent:
         self.loop_action_counter = 0
         self.counter = 0
         self.score = 0
+        self.prev_state = []
         self.episode = 0
         self.optimizer = optim.SGD(
-            self.policy.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov=True
+            self.policy.parameters(),
+            lr=self.learning_rate,
+            momentum=self.momentum,
+            nesterov=True,
         )
 
     def calculate_distance(pos1, pos2):
         # pos1 and pos2 are tuples representing positions (x, y)
         x1, y1 = pos1
         x2, y2 = pos2
-        distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
         return distance
 
-    def calculate_reward(self, done, lives, hit_wall, hit_ghost, action, prev_score):
-
+    def calculate_reward(
+        self, done, lives, hit_wall, hit_ghost, action, prev_score, info: GameState
+    ):
         reward = 0
         if done:
             if lives > 0:
@@ -123,18 +136,51 @@ class LearningAgent:
             return reward
         if self.score - prev_score >= 200:
             return 12
-        # if hit_wall:
-        #     reward -= 10
+        index = np.where(info.frame == 5)
+        if len(index[0]) != 0:
+            x = index[0][0]
+            y = index[1][0]
+            try:
+                upper_cell = info.frame[x + 1][y]
+                lower_cell = info.frame[x - 1][y]
+            except IndexError:
+                upper_cell = 0
+                lower_cell = 0
+                print("x", index[0][0], "y", index[1][0])
+            try:
+                right_cell = info.frame[x][y + 1]
+                left_cell = info.frame[x][y - 1]
+            except IndexError:
+                right_cell = 0
+                left_cell = 0
+                print("x", index[0][0], "y", index[1][0])
+            if action == 0:
+                if upper_cell == 1:
+                    reward -= 2
+            elif action == 1:
+                if lower_cell == 1:
+                    reward -= 2
+            elif action == 2:
+                if left_cell == 1:
+                    reward -= 2
+            elif action == 3:
+                if right_cell == 1:
+                    reward -= 2
         if hit_ghost:
             reward -= 20
-        if REVERSED[self.last_action] == action:
-            print(action, self.last_action)
-            self.loop_action_counter += 1
-        else:
-            self.loop_action_counter = 0
-        if self.loop_action_counter > 1:
-            reward -= 3
-            print("why the fuck")
+        # if info.ghost_distance >= 5 or info.ghost_distance == -1:
+        #     if self.last_action == action and not hit_wall and not hit_ghost:
+        #         reward += 3
+        #     if REVERSED[self.last_action] == action:
+        #         reward -= 3
+        if info.food_distance < self.prev_state.food_distance:
+            reward += 1
+        if (
+            info.powerup_distance < self.prev_state.powerup_distance
+            and info.powerup_distance != -1
+        ):
+            reward += 1
+
         return reward
 
     def optimize_model(self):
@@ -150,12 +196,10 @@ class LearningAgent:
         dones = torch.tensor(batch.done, dtype=torch.float32).to(device)
         predicted_targets = self.policy(state_batch).gather(1, action_batch)
         target_values = self.target(new_state_batch).detach().max(1)[0]
-        labels = reward_batch + self.gamma * \
-            (1 - dones) * target_values
+        labels = reward_batch + self.gamma * (1 - dones) * target_values
 
         criterion = torch.nn.SmoothL1Loss()
-        loss = criterion(predicted_targets,
-                         labels.detach().unsqueeze(1)).to(device)
+        loss = criterion(predicted_targets, labels.detach().unsqueeze(1)).to(device)
         self.optimizer.zero_grad()
         loss.backward()
         for param in self.policy.parameters():
@@ -172,11 +216,13 @@ class LearningAgent:
             vals = q_values.max(1)[1]
             return vals.view(1, 1)
         sample = random.random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
-            math.exp(-1. * self.counter / self.eps_decay)
+        epsilon = max(
+            self.eps_end,
+            self.eps_start - (self.eps_start - self.eps_end) * (self.steps) / EPS_DECAY,
+        )
         # display.data.q_values.append(q_values.max(1)[0].item())
         self.steps += 1
-        if sample > eps_threshold:
+        if sample > epsilon:
             with torch.no_grad():
                 q_values = self.policy(state)
             # Optimal action
@@ -192,8 +238,8 @@ class LearningAgent:
     def plot_rewards(self, name="plot.png", avg=100):
         plt.figure(1)
         durations_t = torch.tensor(self.rewards, dtype=torch.float)
-        plt.xlabel('Episode')
-        plt.ylabel('Rewards')
+        plt.xlabel("Episode")
+        plt.ylabel("Rewards")
         plt.plot(durations_t.numpy())
         if len(durations_t) >= avg:
             means = durations_t.unfold(0, avg, 1).mean(1).view(-1)
@@ -204,7 +250,6 @@ class LearningAgent:
         plt.savefig(name)
 
     def process_state(self, states):
-
         tensor = [torch.from_numpy(arr).float().to(device) for arr in states]
 
         # frightened_ghosts_tensor = torch.from_numpy(
@@ -215,19 +260,27 @@ class LearningAgent:
 
     def save_model(self):
         if self.episode % SAVE_EPISODE_FREQ == 0 and self.episode != 0:
-            torch.save(self.policy.state_dict(), os.path.join(
-                os.getcwd() + "\\results", f"policy-model-{self.episode}-{self.steps}.pt"))
-            torch.save(self.target.state_dict(), os.path.join(
-                os.getcwd() + "\\results", f"target-model-{self.episode}-{self.steps}.pt"))
+            torch.save(
+                self.policy.state_dict(),
+                os.path.join(
+                    os.getcwd() + "\\results",
+                    f"policy-model-{self.episode}-{self.steps}.pt",
+                ),
+            )
+            torch.save(
+                self.target.state_dict(),
+                os.path.join(
+                    os.getcwd() + "\\results",
+                    f"target-model-{self.episode}-{self.steps}.pt",
+                ),
+            )
 
     def load_model(self, name="200-44483", eval=False):
         self.steps = 44483
         self.counter = int(self.steps / 2)
-        path = os.path.join(
-            os.getcwd() + "\\results", f"target-model-{name}.pt")
+        path = os.path.join(os.getcwd() + "\\results", f"target-model-{name}.pt")
         self.target.load_state_dict(torch.load(path))
-        path = os.path.join(
-            os.getcwd() + "\\results", f"policy-model-{name}.pt")
+        path = os.path.join(os.getcwd() + "\\results", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
         if eval:
             self.target.eval()
@@ -241,12 +294,7 @@ class LearningAgent:
 
         current_direction = "up"
 
-        direction_mapping = {
-            "up": 0,
-            "down": 1,
-            "left": 2,
-            "right": 3
-        }
+        direction_mapping = {"up": 0, "down": 1, "left": 2, "right": 3}
 
         direction_encoding = np.zeros(num_directions)
         direction_index = direction_mapping[current_direction]
@@ -259,8 +307,9 @@ class LearningAgent:
         self.episode += 1
         lives = 3
         random_action = random.choice([0, 1, 2, 3])
-        obs, self.score, done, remaining_lives, invalid_move = self.game.step(
-            random_action)
+        obs, self.score, done, remaining_lives, invalid_move, info = self.game.step(
+            random_action
+        )
         state = self.process_state(obs)
         last_score = 0
         self.score = 0
@@ -269,8 +318,14 @@ class LearningAgent:
             action_t = action.item()
             for i in range(3):
                 if not done:
-                    obs, self.score, done, remaining_lives, invalid_move = self.game.step(
-                        action_t)
+                    (
+                        obs,
+                        self.score,
+                        done,
+                        remaining_lives,
+                        invalid_move,
+                        info,
+                    ) = self.game.step(action_t)
                     if lives != remaining_lives:
                         break
                 else:
@@ -281,15 +336,19 @@ class LearningAgent:
                 lives -= 1
             next_state = self.process_state(obs)
             reward_ = self.calculate_reward(
-                done, lives, invalid_move, hit_ghost, action_t, last_score)
+                done, lives, invalid_move, hit_ghost, action_t, last_score, info
+            )
             last_score = self.score
-            self.memory.append(state, action,
-                               torch.tensor([reward_], device=device), next_state, done)
+            self.memory.append(
+                state, action, torch.tensor([reward_], device=device), next_state, done
+            )
             state = next_state
             if self.steps % 2 == 0:
                 self.optimize_model()
             self.last_action = action_t
+            self.prev_state = info
             if done:
+                self.log()
                 # assert reward_sum == reward
                 self.rewards.append(self.score)
                 self.plot_rewards(avg=10)
@@ -306,7 +365,8 @@ class LearningAgent:
             lives = 3
             random_action = random.choice([0, 1, 2, 3])
             obs, reward, done, remaining_lives, invalid_move = self.game.step(
-                random_action)
+                random_action
+            )
             state = self.process_state(obs)
             while True:
                 action = self.select_action(state, eval=True)
@@ -314,8 +374,13 @@ class LearningAgent:
                 print("action", action_t)
                 for i in range(3):
                     if not done:
-                        obs, reward, done, remaining_lives, invalid_move = self.game.step(
-                            action_t)
+                        (
+                            obs,
+                            reward,
+                            done,
+                            remaining_lives,
+                            invalid_move,
+                        ) = self.game.step(action_t)
                         if lives != remaining_lives:
                             break
                     else:
@@ -324,6 +389,10 @@ class LearningAgent:
                     lives -= 1
                 state = self.process_state(obs)
                 if done:
+                    eps_threshold = self.eps_end + (
+                        self.eps_start - self.eps_end
+                    ) * math.exp(-1.0 * self.counter / self.eps_decay)
+                    print("eps", eps_threshold)
                     self.rewards.append(reward)
                     self.plot_rewards(name="test.png", avg=2)
                     time.sleep(1)
@@ -333,11 +402,30 @@ class LearningAgent:
         else:
             self.game.stop()
 
+    def log(self):
+        current_lr = self.optimizer.param_groups[0]["lr"]
+        epsilon = max(
+            self.eps_end,
+            self.eps_start - (self.eps_start - self.eps_end) * (self.steps) / EPS_DECAY,
+        )
+        print(
+            "epsilon",
+            round(epsilon, 3),
+            "reward",
+            self.score,
+            "learning rate",
+            current_lr,
+            "episode",
+            self.episode,
+            "steps",
+            self.steps,
+        )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     agent = LearningAgent()
-    #agent.load_model(name="100-49804",)
+    # agent.load_model(name="100-49804",)
     agent.rewards = []
     while True:
-        #agent.train()
-        agent.test()
+        agent.train()
+        # agent.test()
