@@ -2,6 +2,7 @@
  
 # QItem for current location and distance
 # from source location
+import numpy as np
 class QItem:
     def __init__(self, row, col, dist):
         self.row = row
@@ -11,13 +12,13 @@ class QItem:
     def __repr__(self):
         return f"QItem({self.row}, {self.col}, {self.dist})"
  
-def minDistance(grid):
+def minDistance(grid,target,detination):
     source = QItem(0, 0, 0)
  
     # Finding the source to start from
     for row in range(len(grid)):
         for col in range(len(grid[row])):
-            if grid[row][col] == 's':
+            if grid[row][col] == target:
                 source.row = row
                 source.col = col
                 break
@@ -34,7 +35,7 @@ def minDistance(grid):
         source = queue.pop(0)
  
         # Destination found;
-        if (grid[source.row][source.col] == 'd'):
+        if (grid[source.row][source.col] == detination):
             return source.dist
  
         # moving up
@@ -64,17 +65,17 @@ def minDistance(grid):
 def isValid(x, y, grid, visited):
     if ((x >= 0 and y >= 0) and
         (x < len(grid) and y < len(grid[0])) and
-            (grid[x][y] != '0') and (visited[x][y] == False)):
+            (grid[x][y] != 1) and (visited[x][y] == False)):
         return True
     return False
  
 # Driver code
 if __name__ == '__main__':
-    grid = [['0', '*', '0', 's'],
+    grid = [['0', '*', '0', '*'],
             ['*', '0', '*', '*'],
-            ['0', '*', '*', '*'],
-            ['d', '*', '*', '*']]
- 
-    print(minDistance(grid))
+            ['0', '*', '0', '*'],
+            ['*', '*', 'd', '0']]
+    grid = np.array(grid)
+    print(minDistance(grid,'s','d'))
  
     # This code is contributed by sajalmittaldei.

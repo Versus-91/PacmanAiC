@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pygame
 from pygame.locals import *
+from bfs import minDistance
 from constants import *
 from pacman import Pacman
 from nodes import NodeGroup
@@ -39,11 +40,15 @@ direction_vals = {
 class GameState:
     def __init__(self):
         self.lives = 0
-        self.frame = []
         self.invalid_move = False
         self.total_pellets = 0
         self.collected_pellets = 0
-        self.direction = 0
+        self.frame = []
+        self.food_distance = -1
+        self.ghost_distance = -1
+        self.scared_ghost_distance = -1
+        self.powerup_distance = -1
+        self.in_portal = False
 
 
 class GameController(object):
@@ -291,15 +296,21 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        features = self.extract_features(frame)
         info = GameState()
+        state = self.get_state()
         info.lives = self.lives
         info.invalid_move = invalid_move
-        info.total_pellets = len(
-            self.pellets.pelletList) + len(self.eatenPellets)
+        info.total_pellets = len(self.pellets.pelletList) + len(self.eatenPellets)
         info.collected_pellets = len(self.eatenPellets)
-        info.frame = features
-        info.direction = self.pacman.direction
+        info.frame = self.get_frame()
+        row_indices, _ = np.where(info.frame == 5)
+        if row_indices.size > 0:
+            info.food_distance = minDistance(info.frame,5,3)
+            info.powerup_distance = minDistance(info.frame,5,4)
+            info.ghost_distance = minDistance(info.frame,5,-6)
+            info.scared_ghost_distance = minDistance(info.frame,5,6)
+        else:
+            info.in_portal = self.pacman.teleporting
         return (state, self.score, self.lives == 0 or (self.pellets.isEmpty()), info)
 
     def checkEvents(self):

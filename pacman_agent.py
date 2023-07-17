@@ -54,7 +54,7 @@ class PacmanAgent:
         self.score = 0
         self.target = Conv2dNetwork().to(device)
         self.policy = Conv2dNetwork().to(device)
-        self.memory = ExperienceReplay(20000)
+        self.memory = ExperienceReplay(13000)
         self.game = GameWrapper()
         self.lr = 0.001
         self.writer = SummaryWriter('logs/dqn')
@@ -68,71 +68,90 @@ class PacmanAgent:
         self.optimizer = optim.Adam(self.policy.parameters(), lr=self.lr)
         self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=0.8)
         self.losses = []
-    def calculate_reward(
-        self, done, lives, hit_ghost, action, prev_score, info: GameState
-    ):
+        self.prev_info=[]
+    def get_reward(self, done, lives, hit_ghost, action, prev_score,info:GameState):
         reward = 0
-        progress = round((info.collected_pellets / info.total_pellets) * 10)
         if done:
             if lives > 0:
                 print("won")
-                reward = 50
+                reward = 30
             else:
-                reward = -50
+                reward = -30
             return reward
+        
+        progress =  int((info.collected_pellets / info.total_pellets) * 7)
         if self.score - prev_score == 10:
-            reward += 3
+            reward += 10
         if self.score - prev_score == 50:
-            print("power up")
-            reward += 6
+            reward += 10
+            if info.ghost_distance != -1 and info.ghost_distance < 10:
+                reward += 3
         if reward > 0:
             reward += progress
+            return reward
         if self.score - prev_score >= 200:
-            reward += 20 * ((self.score - prev_score) / 200)
+            return 16 + (self.score - prev_score // 200) * 3
+        invalid_in_maze= self.get_neighbors(info,action)        
         if hit_ghost:
-            reward -= 30
-        index = np.where(info.frame == 5)
-        if len(index[0]) != 0:
-            x = index[0][0]
-            y = index[1][0]
+            reward -= 20
+        # if (info.ghost_distance >=1 and info.ghost_distance < 8):
+        #     if  self.prev_info.ghost_distance > info.ghost_distance:
+        #         reward -= 3
+        #     elif self.prev_info.ghost_distance < info.ghost_distance:
+        #         reward += 3
+        #     if invalid_in_maze:
+        #         reward -= 3
+        #     return reward            
+        if self.prev_info.food_distance > info.food_distance and info.food_distance != -1:
+            reward += 4
+        elif self.prev_info.food_distance < info.food_distance and info.food_distance != -1:
+            reward -= 2
+        # if info.scared_ghost_distance <= 10 and self.prev_info.scared_ghost_distance >= info.scared_ghost_distance and info.scared_ghost_distance != -1:
+        #     reward += 4
+        # if not (info.ghost_distance >=1 and info.ghost_distance < 5):
+        #     if action == REVERSED[self.last_action] and not info.invalid_move:
+        #         reward -= 2
+        if invalid_in_maze:
+            reward -= 8
+        else:
+            if self.last_action == action and not hit_ghost:
+                reward += 2
+        if not info.in_portal and info.food_distance == -1 and not hit_ghost:
+            reward -= 15
+        reward -= 1
+        #assert(reward >=-30 and reward <= 30)
+        self.writer.add_scalar('rewards', reward, global_step=self.steps)
+        return reward
+    def get_neighbors(self,info,action):
+        row_indices, col_indices = np.where(info.frame == 5)
+        invalid_in_maze = False
+        if row_indices.size > 0:
+            x = row_indices[0]
+            y = col_indices[0]
             try:
-                upper_cell = info.frame[x + 1][y]
-                lower_cell = info.frame[x - 1][y]
-            except IndexError:
-                upper_cell = 0
-                lower_cell = 0
-                print("x",index[0][0],"y",index[1][0])
-            try:
+                upper_cell = info.frame[x - 1][y]
+                lower_cell = info.frame[x + 1][y]
                 right_cell = info.frame[x][y + 1]
                 left_cell = info.frame[x][y - 1]
             except IndexError:
+                upper_cell = 0
+                lower_cell = 0
                 right_cell = 0
                 left_cell = 0
-                print("x",index[0][0],"y",index[1][0])
-
-            if action == 0:
-                if upper_cell == 1:
-                    reward -= 10
-            elif action == 1:
-                if lower_cell == 1:
-                    reward -= 10
-            elif action == 2:
-                if left_cell == 1:
-                    reward -= 10
-            elif action == 3:
-                if right_cell == 1:
-                    reward -= 10
-            if -6 in (right_cell, left_cell, upper_cell, lower_cell):
-                reward -= 20
-            elif 3 in (right_cell, left_cell, upper_cell, lower_cell):
-                reward += 1.5
-            elif 4 in (right_cell, left_cell, upper_cell, lower_cell):
-                reward += 3
-        reward = round(reward, 2)
-        reward -= 1
-        #print(reward)
-        return reward
-
+            if info.invalid_move:
+                if action == 0:
+                    if upper_cell == 1:
+                        invalid_in_maze=True
+                elif action == 1:
+                    if lower_cell == 1:
+                        invalid_in_maze=True
+                elif action == 2:
+                    if left_cell == 1:
+                        invalid_in_maze=True
+                elif action == 3:
+                    if right_cell == 1:
+                        invalid_in_maze=True
+        return invalid_in_maze
     def write_matrix(self, matrix):
         with open("outfile.txt", "wb") as f:
             for line in matrix:
@@ -221,12 +240,17 @@ class PacmanAgent:
                     f"target-model-{self.episode}-{self.steps}.pt",
                 ),
             )
+            torch.save(self.optimizer.state_dict(), os.path.join(
+                os.getcwd() + "\\results", f"optimizer-{self.episode}-{self.steps}.pt"))
 
     def load_model(self, name, eval=False):
         path = os.path.join(os.getcwd() + "\\results", f"target-model-{name}.pt")
         self.target.load_state_dict(torch.load(path))
         path = os.path.join(os.getcwd() + "\\results", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
+        path = os.path.join(
+            os.getcwd() + "\\results", f"optimizer-{name}.pt")
+        self.optimizer.load_state_dict(torch.load(path))
         if eval:
             self.target.eval()
             self.policy.eval()
@@ -251,6 +275,13 @@ class PacmanAgent:
         else:
             action = random.randrange(N_ACTIONS)
         return action
+    def pacman_pos(self,state):
+        index = np.where(state != 0)
+        if len(index[0]) != 0:
+            x = index[0][0]
+            y = index[1][0]
+            return (x,y)
+        return None
     def train(self):
         if self.steps >= MAX_STEPS:
             self.save_model(force=True)
@@ -272,13 +303,21 @@ class PacmanAgent:
         while True:
             action = self.act(state)
             action_t = action.item()
-            for i in range(3):
-                if not done:
-                    obs, self.score, done, info = self.game.step(action_t)
-                    if lives != info.lives or self.score - last_score != 0:
+            pacman_pos = self.pacman_pos(obs[2])
+            while True:
+                    if not done:
+                        obs, self.score, done, info = self.game.step(
+                            action_t)
+                        counter += 1
+                        pacman_pos_new = self.pacman_pos(obs[2])
+                        if counter > 40:
+                            print("something went wrong")
+                            break
+                        if pacman_pos_new != pacman_pos or lives != info.lives or self.get_neighbors(info,action_t):
+                            pacman_pos = pacman_pos_new
+                            break
+                    else:
                         break
-                else:
-                    break
             self.buffer.append(info.frame)
             hit_ghost = False
             if lives != info.lives:
@@ -291,11 +330,8 @@ class PacmanAgent:
             #next_state = torch.tensor(obs).float().to(device)
             next_state = self.process_state(self.buffer)
             #next_state = self.process_state(obs)
-
-            reward_ = self.calculate_reward(
-                done, lives, hit_ghost, action_t, last_score, info
-            )
-            reward_total += reward_
+            self.prev_info = info
+            reward_ = self.get_reward(done, lives, hit_ghost, action_t, last_score, info)
             last_score = self.score
             action_tensor = torch.tensor([[action_t]], device=device, dtype=torch.long)
             self.memory.append(
@@ -372,7 +408,7 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    agent.load_model(name="400-195112", eval=False)
+    #agent.load_model(name="400-195112", eval=False)
     agent.rewards = []
     while True:
         agent.train()
