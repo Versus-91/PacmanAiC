@@ -66,7 +66,7 @@ class PacmanAgent:
         self.loop_action_counter = 0
         self.score = 0
         self.episode = 0
-        # self.optimizer = optim.Adam(self.policy.parameters(), lr=self.lr)
+        self.optimizer = optim.Adam(self.policy.parameters(), lr=self.lr)
         # self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=0.8)
         self.losses = []
         self.prev_info=[]
@@ -102,7 +102,7 @@ class PacmanAgent:
         #     if invalid_in_maze:
         #         reward -= 3
         #     return reward            
-        if self.prev_info.food_distance > info.food_distance and info.food_distance != -1:
+        if self.prev_info.food_distance >= info.food_distance and info.food_distance != -1:
             reward += 4
         elif self.prev_info.food_distance < info.food_distance and info.food_distance != -1:
             reward -= 3
@@ -115,7 +115,7 @@ class PacmanAgent:
             reward -= 8
         else:
             if action == REVERSED[self.last_action] and hit_ghost or info.food_distance == -1:
-                reward -= 2
+                reward -= 4
         if not info.in_portal and info.food_distance == -1 and not hit_ghost:
             reward -= 20
         reward -= 1
@@ -353,6 +353,7 @@ class PacmanAgent:
                 time.sleep(1)
                 self.game.restart()
                 torch.cuda.empty_cache()
+                self.writer.add_scalar('episode reward', self.score, global_step=self.episode)
                 break
 
     def log(self):
