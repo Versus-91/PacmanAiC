@@ -57,7 +57,7 @@ class PacmanAgent:
         self.policy = Conv2dNetwork().to(device)
         self.memory = ExperienceReplay(13000)
         self.game = GameWrapper()
-        self.lr = 0.0008
+        self.lr = 0.0003
         self.writer = SummaryWriter('logs/dqn')
         self.current_direction = 0
         self.buffer = deque(maxlen=4)
@@ -66,8 +66,8 @@ class PacmanAgent:
         self.loop_action_counter = 0
         self.score = 0
         self.episode = 0
-        self.optimizer = optim.Adam(self.policy.parameters(), lr=self.lr)
-        self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=0.8)
+        # self.optimizer = optim.Adam(self.policy.parameters(), lr=self.lr)
+        # self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=0.8)
         self.losses = []
         self.prev_info=[]
         self.last_action = 0
@@ -85,14 +85,12 @@ class PacmanAgent:
         if self.score - prev_score == 10:
             reward += 10
         if self.score - prev_score == 50:
-            reward += 10
-            if info.ghost_distance != -1 and info.ghost_distance < 10:
-                reward += 3
+            reward += 13
         if reward > 0:
             reward += progress
             return reward
         if self.score - prev_score >= 200:
-            return 16 + (self.score - prev_score // 200) * 3
+            return 16
         invalid_in_maze= self.get_neighbors(info,action)        
         if hit_ghost:
             reward -= 20
@@ -107,7 +105,7 @@ class PacmanAgent:
         if self.prev_info.food_distance > info.food_distance and info.food_distance != -1:
             reward += 4
         elif self.prev_info.food_distance < info.food_distance and info.food_distance != -1:
-            reward -= 2
+            reward -= 3
         # if info.scared_ghost_distance <= 10 and self.prev_info.scared_ghost_distance >= info.scared_ghost_distance and info.scared_ghost_distance != -1:
         #     reward += 4
         # if not (info.ghost_distance >=1 and info.ghost_distance < 5):
@@ -116,8 +114,8 @@ class PacmanAgent:
         if invalid_in_maze:
             reward -= 8
         else:
-            if self.last_action == action and not hit_ghost:
-                reward += 2
+            if action == REVERSED[self.last_action] and hit_ghost or info.food_distance == -1:
+                reward -= 2
         if not info.in_portal and info.food_distance == -1 and not hit_ghost:
             reward -= 20
         reward -= 1
@@ -344,8 +342,8 @@ class PacmanAgent:
             )
             state = next_state
             self.learn()
-            if self.steps % 100000 == 0:
-                self.scheduler.step()
+            # if self.steps % 100000 == 0:
+            #     self.scheduler.step()
             self.last_action = action_t
             if done:
                 self.log()
@@ -358,7 +356,7 @@ class PacmanAgent:
                 break
 
     def log(self):
-        current_lr = self.optimizer.param_groups[0]["lr"]
+        # current_lr = self.optimizer.param_groups[0]["lr"]
         epsilon = max(
             EPS_END,
             EPS_START - (EPS_START - EPS_END) * (self.steps) / EPS_DECAY,
@@ -369,7 +367,7 @@ class PacmanAgent:
             "reward",
             self.score,
             "learning rate",
-            current_lr,
+            self.lr,
             "episode",
             self.episode,
             "steps",
