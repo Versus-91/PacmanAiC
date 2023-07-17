@@ -107,15 +107,20 @@ class PacmanAgent:
         if self.prev_info.food_distance > info.food_distance and info.food_distance != -1:
             reward += 4
         elif self.prev_info.food_distance < info.food_distance and info.food_distance != -1:
-            reward -= 3
-        if info.scared_ghost_distance <= 10 and self.prev_info.scared_ghost_distance >= info.scared_ghost_distance and info.scared_ghost_distance != -1:
-            reward += 2
-        if action == REVERSED[self.last_action]:
-            reward -= 3
+            reward -= 2
+        # if info.scared_ghost_distance <= 10 and self.prev_info.scared_ghost_distance >= info.scared_ghost_distance and info.scared_ghost_distance != -1:
+        #     reward += 4
+        # if not (info.ghost_distance >=1 and info.ghost_distance < 5):
+        #     if action == REVERSED[self.last_action] and not info.invalid_move:
+        #         reward -= 2
         if invalid_in_maze:
             reward -= 8
+        else:
+            if self.last_action == action and not hit_ghost:
+                reward += 2
         if not info.in_portal and info.food_distance == -1 and not hit_ghost:
-            reward -= 16
+            reward -= 20
+        reward -= 1
         #assert(reward >=-30 and reward <= 30)
         self.writer.add_scalar('rewards', reward, global_step=self.steps)
         return reward

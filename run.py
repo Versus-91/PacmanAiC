@@ -375,14 +375,14 @@ class GameController(object):
                 pellets[y][x] = 2
             else:
                 pellets[y][x] = 3
-        x = int(math.floor(self.pacman.position.x / 16))
-        y = int(math.floor(self.pacman.position.y / 16))
+        x = int(round(self.pacman.position.x / 16))
+        y = int(round(self.pacman.position.y / 16))
         # assert game[y][x] != 1
         pacman[y][x] = self.direction_state(self.pacman.direction)
         assert walls[y][x] != 0
         for ghost in enumerate(self.ghosts):
-            x = int(math.floor(ghost[1].position.x / 16))
-            y = int(math.floor(ghost[1].position.y / 16))
+            x = int(round(ghost[1].position.x / 16))
+            y = int(round(ghost[1].position.y / 16))
             if ghost[1].mode.current is not FREIGHT and ghost[1].mode.current is not SPAWN:
                 ghosts[y][x] = -1 * \
                     self.direction_state(ghost[1].direction)
@@ -420,13 +420,13 @@ class GameController(object):
                 self.state[y][x] = 3
             else:
                 self.state[y][x] = 4
-        pacman_x = int(math.floor(self.pacman.position.x / 16))
-        pacman_y = int(math.floor(self.pacman.position.y / 16))
+        pacman_x = int(round(self.pacman.position.x / 16))
+        pacman_y = int(round(self.pacman.position.y / 16))
         self.state[pacman_y][pacman_x] = 5
         assert self.state[y][x] != 1
         for ghost in enumerate(self.ghosts):
-            x = int(math.floor(ghost[1].position.x / 16))
-            y = int(math.floor(ghost[1].position.y / 16))
+            x = int(round(ghost[1].position.x / 16))
+            y = int(round(ghost[1].position.y / 16))
             if ghost[1].mode.current is not FREIGHT and ghost[1].mode.current is not SPAWN:
                 self.state[y][x] = -6
             elif ghost[1].mode.current is FREIGHT:
