@@ -8,6 +8,7 @@ from collections import deque, namedtuple
 import random
 import time
 from cnn import Conv2dNetwork
+from constants import *
 from game import GameWrapper
 import random
 import matplotlib
@@ -181,7 +182,6 @@ class PacmanAgent:
         self.optimizer.step()
         if self.steps % sync_every == 0:
             self.target.load_state_dict(self.policy.state_dict())
-
     def act(self, state, eval=False):
         if eval:
             with torch.no_grad():
@@ -199,7 +199,7 @@ class PacmanAgent:
             return outputs.max(1)[1].view(1, 1)
         else:
             action = random.randrange(N_ACTIONS)
-            while action == REVERSED[self.current_direction]:
+            while action == REVERSED[self.last_action] or self.game.get_invalid_action(action):
                 action = random.randrange(N_ACTIONS)
             return torch.tensor([[action]], device=device, dtype=torch.long)
 

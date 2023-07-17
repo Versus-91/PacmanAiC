@@ -312,7 +312,10 @@ class GameController(object):
         else:
             info.in_portal = self.pacman.teleporting
         return (state, self.score, self.lives == 0 or (self.pellets.isEmpty()), info)
-
+    def get_invalid_action(self,action):
+         if not self.pacman.validDirection(action):
+            return True
+         return False
     def checkEvents(self):
         for event in pygame.event.get():
             if event.type == QUIT:
