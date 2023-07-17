@@ -29,7 +29,7 @@ Experience = namedtuple(
 )
 
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
-EPS_START = 0.9
+EPS_START = 0.95
 EPS_END = 0.05
 EPS_DECAY = 500000
 MAX_STEPS = 600000
@@ -57,7 +57,7 @@ class PacmanAgent:
         self.policy = Conv2dNetwork().to(device)
         self.memory = ExperienceReplay(13000)
         self.game = GameWrapper()
-        self.lr = 0.001
+        self.lr = 0.0008
         self.writer = SummaryWriter('logs/dqn')
         self.current_direction = 0
         self.buffer = deque(maxlen=4)
@@ -107,20 +107,15 @@ class PacmanAgent:
         if self.prev_info.food_distance > info.food_distance and info.food_distance != -1:
             reward += 4
         elif self.prev_info.food_distance < info.food_distance and info.food_distance != -1:
-            reward -= 2
-        # if info.scared_ghost_distance <= 10 and self.prev_info.scared_ghost_distance >= info.scared_ghost_distance and info.scared_ghost_distance != -1:
-        #     reward += 4
-        # if not (info.ghost_distance >=1 and info.ghost_distance < 5):
-        #     if action == REVERSED[self.last_action] and not info.invalid_move:
-        #         reward -= 2
+            reward -= 3
+        if info.scared_ghost_distance <= 10 and self.prev_info.scared_ghost_distance >= info.scared_ghost_distance and info.scared_ghost_distance != -1:
+            reward += 2
+        if action == REVERSED[self.last_action]:
+            reward -= 3
         if invalid_in_maze:
             reward -= 8
-        else:
-            if self.last_action == action and not hit_ghost:
-                reward += 2
         if not info.in_portal and info.food_distance == -1 and not hit_ghost:
-            reward -= 15
-        reward -= 1
+            reward -= 16
         #assert(reward >=-30 and reward <= 30)
         self.writer.add_scalar('rewards', reward, global_step=self.steps)
         return reward
