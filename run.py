@@ -80,6 +80,7 @@ class GameController(object):
         self.pacman_prev = Vector2()
         self.last_dir = 0
         self.dist = 0
+        self.raw_maze =[]
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -261,11 +262,12 @@ class GameController(object):
         return features
 
     def perform_action(self, action):
-        state = None
+        state = []
         invalid_move = False
+        info = GameState()
         if not self.pacman.validDirection(action):
             invalid_move = True
-        dt = self.clock.tick(60) / 1000.0
+        dt = self.clock.tick(120) / 1000.0
         self.textgroup.update(dt)
         self.pellets.update(dt)
         if not self.pause.paused:
@@ -275,8 +277,7 @@ class GameController(object):
             self.checkPelletEvents()
             self.checkGhostEvents()
             self.checkFruitEvents()
-        state = self.get_state()
-        frame = self.get_frame()
+
         if self.pacman.alive:
             if not self.pause.paused:
                 self.pacman.update(dt, action)
@@ -296,7 +297,6 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        info = GameState()
         state = self.get_state()
         info.lives = self.lives
         info.invalid_move = invalid_move
@@ -349,18 +349,20 @@ class GameController(object):
                 return 8
 
     def get_state(self):
-        raw_maze_data = []
-        with open('maze1.txt', 'r') as f:
-            for line in f:
-                raw_maze_data.append(line.split())
-        maze_data = np.array(raw_maze_data)
+        if len(self.raw_maze) == 0:
+            raw_maze_data = []
+            with open('maze1.txt', 'r') as f:
+                for line in f:
+                    raw_maze_data.append(line.split())
+            self.raw_maze = np.array(raw_maze_data)
+        maze_data = np.array(self.raw_maze)
         pellets = np.zeros(maze_data.shape)
         ghosts = np.zeros(maze_data.shape)
         pacman = np.zeros(maze_data.shape)
         walls = np.zeros(maze_data.shape)
         for idx, values in enumerate(maze_data):
             for id, value in enumerate(values):
-                if value in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '=', 'X']:
+                if value not in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '=', 'X']:
                     walls[idx][id] = 1
 
         for idx, pellet in enumerate(self.pellets.pelletList):
@@ -370,20 +372,21 @@ class GameController(object):
                 pellets[y][x] = 2
             else:
                 pellets[y][x] = 3
-        x = int(round(self.pacman.position.x / 16))
-        y = int(round(self.pacman.position.y / 16))
+        x = int(math.floor(self.pacman.position.x / 16))
+        y = int(math.floor(self.pacman.position.y / 16))
+        # assert game[y][x] != 1
         pacman[y][x] = self.direction_state(self.pacman.direction)
-        assert walls[y][x] != 1
+        assert walls[y][x] != 0
         for ghost in enumerate(self.ghosts):
-            x = int(round(ghost[1].position.x / 16))
-            y = int(round(ghost[1].position.y / 16))
-            if ghost[1].mode.current is not FREIGHT:
+            x = int(math.floor(ghost[1].position.x / 16))
+            y = int(math.floor(ghost[1].position.y / 16))
+            if ghost[1].mode.current is not FREIGHT and ghost[1].mode.current is not SPAWN:
                 ghosts[y][x] = -1 * \
                     self.direction_state(ghost[1].direction)
             elif ghost[1].mode.current is FREIGHT:
                 ghosts[y][x] = self.direction_state(ghost[1].direction)
 
-        return [walls[3:34, :], pellets[3:34, :], pacman[3:34, :], ghosts[3:34, :]]
+        return [walls[7:28, :], pellets[7:28, :], pacman[7:28, :], ghosts[7:28, :]]
 
     def find_pellet(self, pellet: Pellet) -> bool:
         for i, item in enumerate(self.pellets.pelletList):
@@ -392,13 +395,14 @@ class GameController(object):
         return False
 
     def get_frame(self):
-        raw_maze_data = []
-        with open('maze1.txt', 'r') as f:
-            for line in f:
-                raw_maze_data.append(line.split())
-        raw_maze_data = np.array(raw_maze_data)
-        self.state = np.zeros(raw_maze_data.shape)
-        for idx, values in enumerate(raw_maze_data):
+        if len(self.raw_maze) == 0:
+            raw_maze_data = []
+            with open('maze1.txt', 'r') as f:
+                for line in f:
+                    raw_maze_data.append(line.split())
+            self.raw_maze = np.array(raw_maze_data)
+        self.state = np.zeros(self.raw_maze.shape)
+        for idx, values in enumerate(self.raw_maze):
             for id, value in enumerate(values):
                 if value in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '=', 'X']:
                     self.state[idx][id] = 1
@@ -413,23 +417,26 @@ class GameController(object):
                 self.state[y][x] = 3
             else:
                 self.state[y][x] = 4
-        x = int(round(self.pacman.position.x / 16))
-        y = int(round(self.pacman.position.y / 16))
-        self.state[y][x] = 5
+        pacman_x = int(math.floor(self.pacman.position.x / 16))
+        pacman_y = int(math.floor(self.pacman.position.y / 16))
+        self.state[pacman_y][pacman_x] = 5
         assert self.state[y][x] != 1
         for ghost in enumerate(self.ghosts):
-            x = int(round(ghost[1].position.x / 16))
-            y = int(round(ghost[1].position.y / 16))
+            x = int(math.floor(ghost[1].position.x / 16))
+            y = int(math.floor(ghost[1].position.y / 16))
             if ghost[1].mode.current is not FREIGHT and ghost[1].mode.current is not SPAWN:
                 self.state[y][x] = -6
-            else:
+            elif ghost[1].mode.current is FREIGHT:
                 self.state[y][x] = 6
+                if x == pacman_x and y == pacman_y:
+                    self.state[y][x] = 5
         # dist = math.sqrt((self.pacman_prev.x - x)**2 + (self.pacman_prev.y - x)**2)
         # if abs(self.pacman_prev.x - x) >= 16 or abs(self.pacman_prev.y - y) >= 16:
         #     self.pacman_prev = self.pacman.position
         #     print("move",self.pacman.position)
 
-        return self.state[3:34, :]
+        return self.state[7:28, :]
+        #return self.state
 
     def find_pellet(self, pellet: Pellet) -> bool:
         for i, item in enumerate(self.pellets.pelletList):

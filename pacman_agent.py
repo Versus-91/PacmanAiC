@@ -69,6 +69,7 @@ class PacmanAgent:
         self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=0.8)
         self.losses = []
         self.prev_info=[]
+        self.last_action = 0
     def get_reward(self, done, lives, hit_ghost, action, prev_score,info:GameState):
         reward = 0
         if done:
@@ -299,11 +300,11 @@ class PacmanAgent:
         state = self.process_state(self.buffer)
         last_score = 0
         lives = 3
-        reward_total = 0
         while True:
             action = self.act(state)
             action_t = action.item()
             pacman_pos = self.pacman_pos(obs[2])
+            counter = 0
             while True:
                     if not done:
                         obs, self.score, done, info = self.game.step(
@@ -343,9 +344,9 @@ class PacmanAgent:
             )
             state = next_state
             self.learn()
-            self.current_direction = self.map_direction(info.direction)
             if self.steps % 100000 == 0:
                 self.scheduler.step()
+            self.last_action = action_t
             if done:
                 self.log()
                 self.rewards.append(self.score)
