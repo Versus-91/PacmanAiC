@@ -273,7 +273,7 @@ class PacmanAgent:
         # state = torch.tensor(obs).float().to(device)
         for i in range(6):
             obs, self.score, done, info = self.game.step(random_action)
-            self.buffer.append(obs)
+            self.buffer.append(info.frame)
         state = self.process_state(self.buffer)
         last_score = 0
         lives = 3
@@ -288,7 +288,7 @@ class PacmanAgent:
                         break
                 else:
                     break
-            self.buffer.append(obs)
+            self.buffer.append(info.frame)
             hit_ghost = False
             if lives != info.lives:
                 # self.write_matrix(self.buffer)
