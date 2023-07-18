@@ -19,13 +19,14 @@ class GameWrapper:
         self.controller.restartGame()
 
     def step(self, action):
-        if action == [1,0,0,0]:
+        assert action >= 0 and action < 4
+        if action == 0:
             action = UP
-        elif action == [0,1,0,0]:
+        elif action == 1:
             action = DOWN
-        elif action == [0,0,1,0]:
+        elif action == 2:
             action = LEFT
-        elif action == [0,0,0,1]:
+        elif action == 3:
             action = RIGHT
         else:
             print("Invalid action", action)

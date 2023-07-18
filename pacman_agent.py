@@ -14,13 +14,6 @@ import random
 import matplotlib
 import torch.optim.lr_scheduler as lr_scheduler
 from tensorboardX import SummaryWriter
-actions = {
-    0 : [1,0,0,0],
-    1 : [0,1,0,0],
-    2 : [0,0,1,0],
-    3 : [0,0,0,1],
-
-}
 from run import GameState
 
 matplotlib.use("Agg")
@@ -33,24 +26,7 @@ sync_every = 100
 Experience = namedtuple(
     "Experience", field_names=["state", "action", "reward", "done", "new_state"]
 )
-def is_reverse(action):
-    if action == [1, 0, 0, 0]:
-        return [0, 1, 0, 0]
-    elif action == [0, 1, 0, 0]:
-        return [1, 0, 0, 0]
-    elif action == [0, 0, 1, 0]:
-        return [0, 0, 0, 1]
-    elif action == [0, 0, 0, 1]:
-        return [0, 0, 1, 0]
-def get_action(action):
-    if action == [1, 0, 0, 0]:
-        return 0
-    elif action == [0, 1, 0, 0]:
-        return 1
-    elif action == [0, 0, 1, 0]:
-        return 2
-    elif action == [0, 0, 0, 1]:
-        return 3
+
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
 EPS_START = 0.95
 EPS_END = 0.05
@@ -159,7 +135,7 @@ class PacmanAgent:
                 reward = -10
             return reward
         progress =  int((info.collected_pellets / info.total_pellets) * 10)
-        invalid_in_maze= self.get_neighbors(action) 
+        invalid_in_maze= self.get_neighbors(info,action) 
         if self.score - prev_score == 10 or self.score - prev_score == 50:
             reward += 4
         if self.score >= 200:
@@ -273,7 +249,7 @@ class PacmanAgent:
             action = random.randrange(N_ACTIONS)
             while action == REVERSED[self.last_action]:
                 action = random.randrange(N_ACTIONS)
-            return torch.tensor([action], device=device, dtype=torch.long)
+            return torch.tensor([[action]], device=device, dtype=torch.long)
 
     def plot_rewards(self,items, name="plot.png",label="rewards", avg=100):
         plt.figure(1)
@@ -375,11 +351,11 @@ class PacmanAgent:
         lives = 3
         while True:
             action = self.act(state)
-            encode_action = actions[action.item()]
+            action_t = action.item()
             for i in range(3):
                 if not done:
                         obs, self.score, done, info = self.game.step(
-                            encode_action)
+                            action_t)
                         if lives != info.lives :
                             break
             self.buffer.append(info.frame)
@@ -390,15 +366,15 @@ class PacmanAgent:
                 lives -= 1
                 if not done:
                     for i in range(3):
-                        _, _, _, _ = self.game.step(encode_action)
+                        _, _, _, _ = self.game.step(action_t)
             #next_state = torch.tensor(obs).float().to(device)
             next_state = self.process_state(self.buffer)
             #next_state = self.process_state(obs)
         
-            reward_ = self.get_reward(done, lives, hit_ghost, action.item(), last_score, info)
+            reward_ = self.get_reward(done, lives, hit_ghost, action_t, last_score, info)
             self.prev_info = info
             last_score = self.score
-            action_tensor = torch.tensor(encode_action, device=device, dtype=torch.long)
+            action_tensor = torch.tensor([[action_t]], device=device, dtype=torch.long)
             self.memory.append(
                 state,
                 action_tensor,
