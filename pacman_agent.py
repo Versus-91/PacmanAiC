@@ -14,7 +14,13 @@ import random
 import matplotlib
 import torch.optim.lr_scheduler as lr_scheduler
 from tensorboardX import SummaryWriter
+actions = {
+    0 : [1,0,0,0],
+    1 : [0,1,0,0],
+    2 : [0,0,1,0],
+    3 : [0,0,0,1],
 
+}
 from run import GameState
 
 matplotlib.use("Agg")
@@ -27,12 +33,29 @@ sync_every = 100
 Experience = namedtuple(
     "Experience", field_names=["state", "action", "reward", "done", "new_state"]
 )
-
+def is_reverse(action):
+    if action == [1, 0, 0, 0]:
+        return [0, 1, 0, 0]
+    elif action == [0, 1, 0, 0]:
+        return [1, 0, 0, 0]
+    elif action == [0, 0, 1, 0]:
+        return [0, 0, 0, 1]
+    elif action == [0, 0, 0, 1]:
+        return [0, 0, 1, 0]
+def get_action(action):
+    if action == [1, 0, 0, 0]:
+        return 0
+    elif action == [0, 1, 0, 0]:
+        return 1
+    elif action == [0, 0, 1, 0]:
+        return 2
+    elif action == [0, 0, 0, 1]:
+        return 3
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
 EPS_START = 0.95
 EPS_END = 0.05
 EPS_DECAY = 500000
-MAX_STEPS = 600000
+MAX_EPISODES = 1000
 
 
 class ExperienceReplay:
@@ -69,61 +92,83 @@ class PacmanAgent:
         self.optimizer = optim.Adam(self.policy.parameters(), lr=self.lr)
         # self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=0.8)
         self.losses = []
+        self.eps = 1
         self.prev_info=[]
         self.last_action = 0
+    # def get_reward(self, done, lives, hit_ghost, action, prev_score,info:GameState):
+        # reward = 0
+        # if done:
+        #     if lives > 0:
+        #         print("won")
+        #         reward = 30
+        #     else:
+        #         reward = -30
+        #     return reward
+        
+        # progress =  int((info.collected_pellets / info.total_pellets) * 7)
+        # if self.score - prev_score == 10:
+        #     reward += 10
+        # if self.score - prev_score == 50:
+        #     reward += 12
+        # if reward > 0:
+        #     reward += progress
+        #     return reward
+        # if self.score - prev_score >= 200:
+        #     return 16 + (self.score - prev_score // 200) * 3
+        # invalid_in_maze= self.get_neighbors(info,action)        
+        # if hit_ghost:
+        #     reward -= 20
+        # # if (info.ghost_distance >=1 and info.ghost_distance < 8):
+        # #     if  self.prev_info.ghost_distance > info.ghost_distance:
+        # #         reward -= 3
+        # #     elif self.prev_info.ghost_distance < info.ghost_distance:
+        # #         reward += 3
+        # #     if invalid_in_maze:
+        # #         reward -= 3
+        # #     return reward            
+        # if self.prev_info.food_distance > info.food_distance and info.food_distance != -1:
+        #     reward += 2
+        # if self.prev_info.powerup_distance > info.powerup_distance and info.powerup_distance != -1:
+        #     reward += 1
+        # if self.prev_info.ghost_distance > info.ghost_distance and info.ghost_distance != -1:
+        #     reward -= 1
+        # if self.prev_info.ghost_distance < info.ghost_distance and info.ghost_distance != -1:
+        #     reward += 1
+        # # if info.scared_ghost_distance <= 10 and self.prev_info.scared_ghost_distance >= info.scared_ghost_distance and info.scared_ghost_distance != -1:
+        # #     reward += 4
+        # # if not (info.ghost_distance >=1 and info.ghost_distance < 5):
+        # #     if action == REVERSED[self.last_action] and not info.invalid_move:
+        # #         reward -= 2
+        # if invalid_in_maze:
+        #     reward -= 8
+        # else:
+        #     if action == REVERSED[self.last_action]:
+        #         reward -= 4
+        # if not info.in_portal and info.food_distance == -1 and not hit_ghost:
+        #     reward -= 15
+        # #assert(reward >=-30 and reward <= 30)
+        # self.writer.add_scalar('rewards', reward, global_step=self.steps)
+        # return reward
     def get_reward(self, done, lives, hit_ghost, action, prev_score,info:GameState):
         reward = 0
         if done:
             if lives > 0:
                 print("won")
-                reward = 30
+                reward = 10
             else:
-                reward = -30
+                reward = -10
             return reward
-        
-        progress =  int((info.collected_pellets / info.total_pellets) * 7)
-        if self.score - prev_score == 10:
-            reward += 10
-        if self.score - prev_score == 50:
-            reward += 12
-        if reward > 0:
-            reward += progress
-            return reward
-        if self.score - prev_score >= 200:
-            return 16 + (self.score - prev_score // 200) * 3
-        invalid_in_maze= self.get_neighbors(info,action)        
+        progress =  int((info.collected_pellets / info.total_pellets) * 10)
+        invalid_in_maze= self.get_neighbors(action) 
+        if self.score - prev_score == 10 or self.score - prev_score == 50:
+            reward += 4
+        if self.score >= 200:
+            reward += 1
         if hit_ghost:
-            reward -= 20
-        # if (info.ghost_distance >=1 and info.ghost_distance < 8):
-        #     if  self.prev_info.ghost_distance > info.ghost_distance:
-        #         reward -= 3
-        #     elif self.prev_info.ghost_distance < info.ghost_distance:
-        #         reward += 3
-        #     if invalid_in_maze:
-        #         reward -= 3
-        #     return reward            
-        if self.prev_info.food_distance > info.food_distance and info.food_distance != -1:
-            reward += 2
-        if self.prev_info.powerup_distance > info.powerup_distance and info.powerup_distance != -1:
-            reward += 1
-        if self.prev_info.ghost_distance > info.ghost_distance and info.ghost_distance != -1:
-            reward -= 1
-        if self.prev_info.ghost_distance < info.ghost_distance and info.ghost_distance != -1:
-            reward += 1
-        # if info.scared_ghost_distance <= 10 and self.prev_info.scared_ghost_distance >= info.scared_ghost_distance and info.scared_ghost_distance != -1:
-        #     reward += 4
-        # if not (info.ghost_distance >=1 and info.ghost_distance < 5):
-        #     if action == REVERSED[self.last_action] and not info.invalid_move:
-        #         reward -= 2
+            reward -= 10
         if invalid_in_maze:
-            reward -= 8
-        else:
-            if action == REVERSED[self.last_action]:
-                reward -= 4
-        if not info.in_portal and info.food_distance == -1 and not hit_ghost:
-            reward -= 15
-        #assert(reward >=-30 and reward <= 30)
-        self.writer.add_scalar('rewards', reward, global_step=self.steps)
+            reward -= 1
+        reward -= 1
         return reward
     def get_neighbors(self,info,action):
         row_indices, col_indices = np.where(info.frame == 5)
@@ -220,11 +265,7 @@ class PacmanAgent:
             vals = q_values.max(1)[1]
             return vals.view(1, 1)
         rand = random.random()
-        epsilon = max(
-            EPS_END, EPS_START - (EPS_START - EPS_END) * (self.steps) / EPS_DECAY
-        )
-        self.steps += 1
-        if rand > epsilon:
+        if rand > self.eps:
             with torch.no_grad():
                 outputs = self.policy(state)
             return outputs.max(1)[1].view(1, 1)
@@ -232,7 +273,7 @@ class PacmanAgent:
             action = random.randrange(N_ACTIONS)
             while action == REVERSED[self.last_action]:
                 action = random.randrange(N_ACTIONS)
-            return torch.tensor([[action]], device=device, dtype=torch.long)
+            return torch.tensor([action], device=device, dtype=torch.long)
 
     def plot_rewards(self,items, name="plot.png",label="rewards", avg=100):
         plt.figure(1)
@@ -316,7 +357,7 @@ class PacmanAgent:
             return (x,y)
         return None
     def train(self):
-        if self.steps >= MAX_STEPS:
+        if self.episode >= MAX_EPISODES:
             self.save_model(force=True)
             exit()
         self.save_model()
@@ -334,13 +375,11 @@ class PacmanAgent:
         lives = 3
         while True:
             action = self.act(state)
-            action_t = action.item()
-            counter = 0
+            encode_action = actions[action.item()]
             for i in range(3):
                 if not done:
                         obs, self.score, done, info = self.game.step(
-                            action_t)
-                        counter += 1
+                            encode_action)
                         if lives != info.lives :
                             break
             self.buffer.append(info.frame)
@@ -351,15 +390,15 @@ class PacmanAgent:
                 lives -= 1
                 if not done:
                     for i in range(3):
-                        _, _, _, _ = self.game.step(action_t)
+                        _, _, _, _ = self.game.step(encode_action)
             #next_state = torch.tensor(obs).float().to(device)
             next_state = self.process_state(self.buffer)
             #next_state = self.process_state(obs)
         
-            reward_ = self.get_reward(done, lives, hit_ghost, action_t, last_score, info)
+            reward_ = self.get_reward(done, lives, hit_ghost, action.item(), last_score, info)
             self.prev_info = info
             last_score = self.score
-            action_tensor = torch.tensor([[action_t]], device=device, dtype=torch.long)
+            action_tensor = torch.tensor(encode_action, device=device, dtype=torch.long)
             self.memory.append(
                 state,
                 action_tensor,
@@ -373,6 +412,9 @@ class PacmanAgent:
             #     self.scheduler.step()
             self.last_action = action_t
             if done:
+                self.eps = max(
+                    EPS_END, EPS_START - (EPS_START - EPS_END) * (self.episode) / MAX_EPISODES
+                )
                 self.log()
                 self.rewards.append(self.score)
                 self.plot_rewards(items= self.rewards, avg=50)
@@ -382,16 +424,13 @@ class PacmanAgent:
                 torch.cuda.empty_cache()
                 self.writer.add_scalar('episode reward', self.score, global_step=self.episode)
                 break
+        
 
     def log(self):
         # current_lr = self.optimizer.param_groups[0]["lr"]
-        epsilon = max(
-            EPS_END,
-            EPS_START - (EPS_START - EPS_END) * (self.steps) / EPS_DECAY,
-        )
         print(
             "epsilon",
-            round(epsilon, 3),
+            round(self.eps, 3),
             "reward",
             self.score,
             "learning rate",
