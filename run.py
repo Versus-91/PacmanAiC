@@ -42,6 +42,7 @@ class GameState:
         self.invalid_move = False
         self.total_pellets = 0
         self.collected_pellets = 0
+        self.frame = []
 
 
 class GameController(object):
@@ -189,6 +190,7 @@ class GameController(object):
     def perform_action(self, action):
         state = None
         invalid_move = False
+        info = GameState()
         if not self.pacman.validDirection(action):
             invalid_move = True
         dt = self.clock.tick(60) / 1000.0
@@ -206,6 +208,7 @@ class GameController(object):
             if not self.pause.paused:
                 self.pacman.update(dt, action)
         else:
+            info.frame = self.get_frame()
             self.pacman.update(dt)
         # if self.flashBG:
         #     self.flashTimer += dt
@@ -221,9 +224,10 @@ class GameController(object):
             afterPauseMethod()
         self.checkEvents()
         self.render()
-        state = self.get_frame()
-        info = GameState()
+        state = []
         info.lives = self.lives
+        if len(info.frame) == 0:
+            info.frame = self.get_frame()
         info.invalid_move = invalid_move
         info.total_pellets = len(
             self.pellets.pelletList) + len(self.eatenPellets)
