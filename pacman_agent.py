@@ -73,6 +73,7 @@ class PacmanAgent:
         reward = 0
         time_penalty = -0.01
         movement_penalty = -0.1
+        invalid_mode = self.check_cells(action,info)
         progress = round((info.collected_pellets / info.total_pellets) * 10)
         if done:
             if lives > 0:
@@ -90,12 +91,13 @@ class PacmanAgent:
             reward += progress
         if self.score - prev_score >= 200:
             reward += 20 * ((self.score - prev_score) / 200)
-        if info.invalid_move:
-            reward -= 1
+        if info.invalid_move and invalid_mode:
+            reward -= 10
         if hit_ghost:
             reward -= 30
         reward += time_penalty
         reward += movement_penalty
+
         index = np.where(state == 5)
         if len(index[0]) != 0:
             x = index[0][0]
@@ -211,6 +213,8 @@ class PacmanAgent:
                     f"target-model-{self.episode}-{self.steps}.pt",
                 ),
             )
+            torch.save(self.optimizer.state_dict(), os.path.join(
+                os.getcwd() + "\\results", f"optimizer-{self.episode}-{self.steps}.pt"))
 
     def load_model(self, name, eval=False):
         path = os.path.join(os.getcwd() + "\\results", f"target-model-{name}.pt")
@@ -226,7 +230,36 @@ class PacmanAgent:
             self.steps = int(name_parts[1])
             self.target.train()
             self.policy.train()
-
+    def check_cells(self,info,action):
+        row_indices, col_indices = np.where(info.frame == 5)
+        invalid_in_maze = False
+        if row_indices.size > 0:
+            x = row_indices[0]
+            y = col_indices[0]
+            try:
+                upper_cell = info.frame[x - 1][y]
+                lower_cell = info.frame[x + 1][y]
+                right_cell = info.frame[x][y + 1]
+                left_cell = info.frame[x][y - 1]
+            except IndexError:
+                upper_cell = 0
+                lower_cell = 0
+                right_cell = 0
+                left_cell = 0
+            if info.invalid_move:
+                if action == 0:
+                    if upper_cell == 1:
+                        invalid_in_maze=True
+                elif action == 1:
+                    if lower_cell == 1:
+                        invalid_in_maze=True
+                elif action == 2:
+                    if left_cell == 1:
+                        invalid_in_maze=True
+                elif action == 3:
+                    if right_cell == 1:
+                        invalid_in_maze=True
+        return invalid_in_maze
     def train(self):
         if self.steps >= MAX_STEPS:
             self.save_model(force=True)
@@ -346,8 +379,8 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    agent.load_model(name="1200-511012", eval=True)
+    #agent.load_model(name="1200-511012", eval=True)
     agent.rewards = []
     while True:
-        #agent.train()
-        agent.test()
+        agent.train()
+        #agent.test()
