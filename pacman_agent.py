@@ -31,7 +31,7 @@ REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
 EPS_START = 1.0
 EPS_END = 0.1
 EPS_DECAY = 500000
-MAX_STEPS = 600000
+MAX_EPISODES = 1000
 
 
 class ExperienceReplay:
@@ -56,7 +56,7 @@ class PacmanAgent:
         self.policy = Conv2dNetwork().to(device)
         self.memory = ExperienceReplay(20000)
         self.game = GameWrapper()
-        self.lr = 0.001
+        self.lr = 0.0003
         self.last_action = 0
         self.buffer = deque(maxlen=4)
         self.last_reward = -1
@@ -65,15 +65,16 @@ class PacmanAgent:
         self.score = 0
         self.episode = 0
         self.optimizer = optim.Adam(self.policy.parameters(), lr=self.lr)
-        self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=0.8)
+        #self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=0.8)
         self.losses = []
+        self.epsilon = 1
     def calculate_reward(
         self, done, lives, hit_ghost, action, prev_score, info: GameState, state
     ):
         reward = 0
         time_penalty = -0.01
         movement_penalty = -0.1
-        invalid_mode = self.check_cells(action,info)
+        invalid_mode = self.check_cells(info,action)
         progress = round((info.collected_pellets / info.total_pellets) * 10)
         if done:
             if lives > 0:
@@ -124,7 +125,31 @@ class PacmanAgent:
             reward -= 5
         reward = round(reward, 2)
         return reward
-
+    def get_reward(self, done, lives, hit_ghost, action, prev_score,info:GameState):
+        reward = 0
+        invalid_mode = self.check_cells(info,action)
+        if done:
+            if lives > 0:
+                print("won")
+                reward = 10
+            else:
+                reward = -10
+            return reward
+        progress =  int((info.collected_pellets / info.total_pellets) * 5)
+        if self.score - prev_score == 10 :
+            reward += 4 + progress
+        if self.score - prev_score == 50:
+            reward += 5 + progress
+        if self.score >= 200:
+            reward += 2
+        if hit_ghost:
+            reward -= 10
+        if action == REVERSED[self.last_action]:
+            reward -= 2
+        if info.invalid_move and invalid_mode:
+            reward -= 3
+        reward -= 1
+        return reward
     def write_matrix(self, matrix):
         with open("outfile.txt", "wb") as f:
             for line in matrix:
@@ -161,11 +186,8 @@ class PacmanAgent:
             vals = q_values.max(1)[1]
             return vals.view(1, 1)
         rand = random.random()
-        epsilon = max(
-            EPS_END, EPS_START - (EPS_START - EPS_END) * (self.steps) / EPS_DECAY
-        )
-        self.steps += 1
-        if rand > epsilon:
+        self.steps+=1
+        if rand > self.epsilon:
             with torch.no_grad():
                 outputs = self.policy(state)
             return outputs.max(1)[1].view(1, 1)
@@ -261,7 +283,7 @@ class PacmanAgent:
                         invalid_in_maze=True
         return invalid_in_maze
     def train(self):
-        if self.steps >= MAX_STEPS:
+        if self.episode >= MAX_EPISODES:
             self.save_model(force=True)
             exit()
         self.save_model()
@@ -281,7 +303,7 @@ class PacmanAgent:
         while True:
             action = self.act(state)
             action_t = action.item()
-            for i in range(3):
+            for i in range(4):
                 if not done:
                     obs, self.score, done, info = self.game.step(action_t)
                     if lives != info.lives or self.score - last_score != 0:
@@ -300,8 +322,8 @@ class PacmanAgent:
             # next_state = torch.tensor(obs).float().to(device)
             next_state = self.process_state(self.buffer)
 
-            reward_ = self.calculate_reward(
-                done, lives, hit_ghost, action_t, last_score, info, obs
+            reward_ = self.get_reward(
+                done, lives, hit_ghost, action_t, last_score, info
             )
             reward_total += reward_
             last_score = self.score
@@ -316,9 +338,12 @@ class PacmanAgent:
             state = next_state
             self.learn()
             self.last_action = action_t
-            if self.steps % 100000 == 0:
-                self.scheduler.step()
+            # if self.steps % 100000 == 0:
+            #     self.scheduler.step()
             if done:
+                self.epsilon = max(
+                        EPS_END, EPS_START - (EPS_START - EPS_END) * (self.episode) / MAX_EPISODES
+                    )
                 self.log()
                 self.rewards.append(self.score)
                 self.plot_rewards(items= self.rewards, avg=50)
@@ -330,13 +355,9 @@ class PacmanAgent:
 
     def log(self):
         current_lr = self.optimizer.param_groups[0]["lr"]
-        epsilon = max(
-            EPS_END,
-            EPS_START - (EPS_START - EPS_END) * (self.steps) / EPS_DECAY,
-        )
         print(
             "epsilon",
-            round(epsilon, 3),
+            round(self.epsilon, 3),
             "reward",
             self.score,
             "learning rate",
