@@ -72,6 +72,7 @@ class GameController(object):
         self.state = []
         self.pacman_prev = Vector2()
         self.dist = 0
+        self.raw_maze =[]
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -265,11 +266,11 @@ class GameController(object):
                 return 8
 
     def get_state(self):
-        raw_maze_data = []
-        with open('maze1.txt', 'r') as f:
-            for line in f:
-                raw_maze_data.append(line.split())
-        maze_data = np.array(raw_maze_data)
+        if len(self.raw_maze) == 0:
+            with open('maze1.txt', 'r') as f:
+                for line in f:
+                    self.raw_maze.append(line.split())
+        maze_data = np.array(self.raw_maze)
         pellets = np.zeros(maze_data.shape)
         ghosts = np.zeros(maze_data.shape)
         pacman = np.zeros(maze_data.shape)
@@ -308,11 +309,11 @@ class GameController(object):
         return False
 
     def get_frame(self):
-        raw_maze_data = []
-        with open('maze1.txt', 'r') as f:
-            for line in f:
-                raw_maze_data.append(line.split())
-        raw_maze_data = np.array(raw_maze_data)
+        if len(self.raw_maze) == 0:
+            with open('maze1.txt', 'r') as f:
+                for line in f:
+                    self.raw_maze.append(line.split())
+        raw_maze_data = np.array(self.raw_maze)
         self.state = np.zeros(raw_maze_data.shape)
         for idx, values in enumerate(raw_maze_data):
             for id, value in enumerate(values):
@@ -329,17 +330,18 @@ class GameController(object):
                 self.state[y][x] = 3
             else:
                 self.state[y][x] = 4
-        x = int(round(self.pacman.position.x / 16))
-        y = int(round(self.pacman.position.y / 16))
-        self.state[y][x] = 5
+        pacman_x = int(round(self.pacman.position.x / 16))
+        pacman_y = int(round(self.pacman.position.y / 16))
+        self.state[pacman_y][pacman_x] = 5
         assert self.state[y][x] != 1
         for ghost in enumerate(self.ghosts):
             x = int(round(ghost[1].position.x / 16))
             y = int(round(ghost[1].position.y / 16))
             if ghost[1].mode.current is not FREIGHT and ghost[1].mode.current is not SPAWN:
                 self.state[y][x] = -6
-            else:
-                self.state[y][x] = 6
+            elif ghost[1].mode.current is FREIGHT:
+                if self.state[y][x] != 5:
+                    self.state[y][x] = 6
         # dist = math.sqrt((self.pacman_prev.x - x)**2 + (self.pacman_prev.y - x)**2)
         # if abs(self.pacman_prev.x - x) >= 16 or abs(self.pacman_prev.y - y) >= 16:
         #     self.pacman_prev = self.pacman.position

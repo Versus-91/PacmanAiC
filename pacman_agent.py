@@ -118,6 +118,8 @@ class PacmanAgent:
                 reward += 1 + progress
             elif 4 in (n1, n2, n3, n4):
                 reward += 3 + progress
+        if action == REVERSED[self.last_action]:
+            reward -= 5
         reward = round(reward, 2)
         return reward
 
