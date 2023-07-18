@@ -55,7 +55,7 @@ class PacmanAgent:
         self.score = 0
         self.target = Conv2dNetwork().to(device)
         self.policy = Conv2dNetwork().to(device)
-        self.memory = ExperienceReplay(13000)
+        self.memory = ExperienceReplay(15000)
         self.game = GameWrapper()
         self.lr = 0.0003
         self.writer = SummaryWriter('logs/dqn')
@@ -85,12 +85,12 @@ class PacmanAgent:
         if self.score - prev_score == 10:
             reward += 10
         if self.score - prev_score == 50:
-            reward += 13
+            reward += 12
         if reward > 0:
             reward += progress
             return reward
         if self.score - prev_score >= 200:
-            return 16
+            return 16 + (self.score - prev_score // 200) * 3
         invalid_in_maze= self.get_neighbors(info,action)        
         if hit_ghost:
             reward -= 20
@@ -102,10 +102,14 @@ class PacmanAgent:
         #     if invalid_in_maze:
         #         reward -= 3
         #     return reward            
-        if self.prev_info.food_distance >= info.food_distance and info.food_distance != -1:
-            reward += 4
-        elif self.prev_info.food_distance < info.food_distance and info.food_distance != -1:
-            reward -= 3
+        if self.prev_info.food_distance > info.food_distance and info.food_distance != -1:
+            reward += 2
+        if self.prev_info.powerup_distance > info.powerup_distance and info.powerup_distance != -1:
+            reward += 1
+        if self.prev_info.ghost_distance > info.ghost_distance and info.ghost_distance != -1:
+            reward -= 1
+        if self.prev_info.ghost_distance < info.ghost_distance and info.ghost_distance != -1:
+            reward += 1
         # if info.scared_ghost_distance <= 10 and self.prev_info.scared_ghost_distance >= info.scared_ghost_distance and info.scared_ghost_distance != -1:
         #     reward += 4
         # if not (info.ghost_distance >=1 and info.ghost_distance < 5):
@@ -114,11 +118,10 @@ class PacmanAgent:
         if invalid_in_maze:
             reward -= 8
         else:
-            if action == REVERSED[self.last_action] and hit_ghost or info.food_distance == -1:
+            if action == REVERSED[self.last_action]:
                 reward -= 4
         if not info.in_portal and info.food_distance == -1 and not hit_ghost:
-            reward -= 20
-        reward -= 1
+            reward -= 15
         #assert(reward >=-30 and reward <= 30)
         self.writer.add_scalar('rewards', reward, global_step=self.steps)
         return reward
@@ -158,8 +161,30 @@ class PacmanAgent:
                 np.savetxt(f, line, fmt="%.2f")
 
     def learn(self):
+        # if len(self.memory) < BATCH_SIZE:
+        #     return
+        # experiences = self.memory.sample(BATCH_SIZE)
+        # batch = Experience(*zip(*experiences))
+        # state_batch = torch.cat(batch.state)
+        # action_batch = torch.cat(batch.action)
+        # new_state_batch = torch.cat(batch.new_state)
+        # reward_batch = torch.cat(batch.reward)
+        # dones = torch.tensor(batch.done, dtype=torch.float32).to(device)
+        # predicted_targets = self.policy(state_batch).gather(1, action_batch)
+        # target_values = self.target(new_state_batch).detach().max(1)[0]
+        # labels = reward_batch + GAMMA * (1 - dones) * target_values
+        # criterion = torch.nn.SmoothL1Loss()
+        # loss = criterion(predicted_targets, labels.detach().unsqueeze(1)).to(device)
+        # self.writer.add_scalar('loss', loss.item(), global_step=self.steps)
+        # self.optimizer.zero_grad()
+        # loss.backward()
+        # # for param in self.policy.parameters():
+        # #     param.grad.data.clamp_(-1, 1)
+        # self.optimizer.step()
+        # if self.steps % sync_every == 0:
+        #     self.target.load_state_dict(self.policy.state_dict())
         if len(self.memory) < BATCH_SIZE:
-            return
+                return
         experiences = self.memory.sample(BATCH_SIZE)
         batch = Experience(*zip(*experiences))
         state_batch = torch.cat(batch.state)
@@ -167,16 +192,24 @@ class PacmanAgent:
         new_state_batch = torch.cat(batch.new_state)
         reward_batch = torch.cat(batch.reward)
         dones = torch.tensor(batch.done, dtype=torch.float32).to(device)
+
+        # ----- Double DQN Action Selection and Evaluation -----
+        with torch.no_grad():
+            # Use the primary Q-network to select the best actions for the next states
+            next_actions = self.policy(new_state_batch).argmax(1)
+            # Evaluate those actions using the target Q-network
+            target_next_values = self.target(new_state_batch).gather(1, next_actions.unsqueeze(1)).squeeze(1)
+
+        # Compute the Double DQN target values
+        expected_q_values  = reward_batch + GAMMA * (1 - dones) * target_next_values
+        # ----- End of Double DQN modification -----
+
         predicted_targets = self.policy(state_batch).gather(1, action_batch)
-        target_values = self.target(new_state_batch).detach().max(1)[0]
-        labels = reward_batch + GAMMA * (1 - dones) * target_values
         criterion = torch.nn.SmoothL1Loss()
-        loss = criterion(predicted_targets, labels.detach().unsqueeze(1)).to(device)
+        loss = criterion(predicted_targets, expected_q_values .detach().unsqueeze(1)).to(device)
         self.writer.add_scalar('loss', loss.item(), global_step=self.steps)
         self.optimizer.zero_grad()
         loss.backward()
-        # for param in self.policy.parameters():
-        #     param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
         if self.steps % sync_every == 0:
             self.target.load_state_dict(self.policy.state_dict())
@@ -197,7 +230,7 @@ class PacmanAgent:
             return outputs.max(1)[1].view(1, 1)
         else:
             action = random.randrange(N_ACTIONS)
-            while action == REVERSED[self.last_action] or self.game.get_invalid_action(action):
+            while action == REVERSED[self.last_action]:
                 action = random.randrange(N_ACTIONS)
             return torch.tensor([[action]], device=device, dtype=torch.long)
 
@@ -247,9 +280,7 @@ class PacmanAgent:
         self.target.load_state_dict(torch.load(path))
         path = os.path.join(os.getcwd() + "\\results", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
-        path = os.path.join(
-            os.getcwd() + "\\results", f"optimizer-{name}.pt")
-        self.optimizer.load_state_dict(torch.load(path))
+
         if eval:
             self.target.eval()
             self.policy.eval()
@@ -257,9 +288,12 @@ class PacmanAgent:
             name_parts = name.split("-")
             self.episode = int(name_parts[0])
             self.steps = int(name_parts[1])
-            scheduler_steps = round(self.steps // 100000)
-            for i in range(scheduler_steps):
-                self.scheduler.step()
+            # scheduler_steps = round(self.steps // 100000)
+            # for i in range(scheduler_steps):
+            #     self.scheduler.step()
+            path = os.path.join(
+                os.getcwd() + "\\results", f"optimizer-{name}.pt")
+            self.optimizer.load_state_dict(torch.load(path))
             self.target.train()
             self.policy.train()
     def map_direction(self,dir):
@@ -301,22 +335,14 @@ class PacmanAgent:
         while True:
             action = self.act(state)
             action_t = action.item()
-            pacman_pos = self.pacman_pos(obs[2])
             counter = 0
-            while True:
-                    if not done:
+            for i in range(3):
+                if not done:
                         obs, self.score, done, info = self.game.step(
                             action_t)
                         counter += 1
-                        pacman_pos_new = self.pacman_pos(obs[2])
-                        if counter > 40:
-                            print("something went wrong")
+                        if lives != info.lives :
                             break
-                        if pacman_pos_new != pacman_pos or lives != info.lives or self.get_neighbors(info,action_t):
-                            pacman_pos = pacman_pos_new
-                            break
-                    else:
-                        break
             self.buffer.append(info.frame)
             hit_ghost = False
             if lives != info.lives:
@@ -329,8 +355,9 @@ class PacmanAgent:
             #next_state = torch.tensor(obs).float().to(device)
             next_state = self.process_state(self.buffer)
             #next_state = self.process_state(obs)
-            self.prev_info = info
+        
             reward_ = self.get_reward(done, lives, hit_ghost, action_t, last_score, info)
+            self.prev_info = info
             last_score = self.score
             action_tensor = torch.tensor([[action_t]], device=device, dtype=torch.long)
             self.memory.append(
@@ -408,7 +435,7 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    #agent.load_model(name="400-195112", eval=False)
+    #agent.load_model(name="200-36753", eval=False)
     agent.rewards = []
     while True:
         agent.train()
