@@ -103,16 +103,14 @@ class PacmanAgent:
             try:
                 n1 = state[x + 1][y]
                 n2 = state[x - 1][y]
-            except IndexError:
-                n1 = 0
-                n2 = 0
-                print("x",index[0][0],"y",index[1][0])
-            try:
                 n3 = state[x][y + 1]
                 n4 = state[x][y - 1]
             except IndexError:
+                n1 = 0
+                n2 = 0
                 n3 = 0
                 n4 = 0
+                print("x",index[0][0],"y",index[1][0])
                 print("x",index[0][0],"y",index[1][0])
             if -6 in (n1, n2, n3, n4):
                 reward -= 30
