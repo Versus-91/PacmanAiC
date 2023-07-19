@@ -30,7 +30,6 @@ Experience = namedtuple(
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
 EPS_START = 1.0
 EPS_END = 0.1
-EPS_DECAY = 500000
 MAX_EPISODES = 1000
 
 
@@ -99,15 +98,15 @@ class PacmanAgent:
         reward += time_penalty
         reward += movement_penalty
 
-        index = np.where(state == 5)
+        index = np.where(info.fram == 5)
         if len(index[0]) != 0:
             x = index[0][0]
             y = index[1][0]
             try:
-                n1 = state[x + 1][y]
-                n2 = state[x - 1][y]
-                n3 = state[x][y + 1]
-                n4 = state[x][y - 1]
+                n1 = info.fram[x + 1][y]
+                n2 = info.fram[x - 1][y]
+                n3 = info.fram[x][y + 1]
+                n4 = info.fram[x][y - 1]
             except IndexError:
                 n1 = 0
                 n2 = 0
@@ -137,9 +136,9 @@ class PacmanAgent:
             return reward
         progress =  int((info.collected_pellets / info.total_pellets) * 5)
         if self.score - prev_score == 10 :
-            reward += 4 + progress
+            reward += 4 
         if self.score - prev_score == 50:
-            reward += 5 + progress
+            reward += 5 
         if self.score >= 200:
             reward += 2
         if hit_ghost:
@@ -147,7 +146,7 @@ class PacmanAgent:
         if action == REVERSED[self.last_action]:
             reward -= 2
         if info.invalid_move and invalid_mode:
-            reward -= 3
+            reward -= 2
         reward -= 1
         return reward
     def write_matrix(self, matrix):
@@ -306,7 +305,7 @@ class PacmanAgent:
             for i in range(4):
                 if not done:
                     obs, self.score, done, info = self.game.step(action_t)
-                    if lives != info.lives or self.score - last_score != 0:
+                    if lives != info.lives:
                         break
                 else:
                     break
@@ -337,7 +336,8 @@ class PacmanAgent:
             )
             state = next_state
             self.learn()
-            self.last_action = action_t
+            if not info.invalid_move:
+                self.last_action = action_t
             # if self.steps % 100000 == 0:
             #     self.scheduler.step()
             if done:
@@ -388,7 +388,7 @@ class PacmanAgent:
                 self.buffer.append(obs)
                 state = self.process_state(self.buffer)
                 if done:
-                    self.rewards.append(reward)
+                    self.rewards.append(reward)1000
                     self.plot_rewards(name="test.png",items=self.rewards, avg=2)
                     time.sleep(1)
                     self.game.restart()
