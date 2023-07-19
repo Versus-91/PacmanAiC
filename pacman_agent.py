@@ -404,8 +404,7 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    agent.load_model(name="1000-555621", eval=True)
-    agent.rewards = []
+    agent.load_model(name="1000-555621", eval=False)
     while True:
-        #agent.train()
-        agent.test()
+        agent.train()
+        #agent.test()
