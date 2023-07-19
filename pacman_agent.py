@@ -245,6 +245,9 @@ class PacmanAgent:
         self.target.load_state_dict(torch.load(path))
         path = os.path.join(os.getcwd() + "\\results", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
+        path = os.path.join(os.getcwd() + "\\results", f"optimizer-{name}.pt")       
+        self.optimizer.load_state_dict(torch.load(path))
+    
         if eval:
             self.target.eval()
             self.policy.eval()
