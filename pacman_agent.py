@@ -147,6 +147,8 @@ class PacmanAgent:
             reward -= 2
         if info.invalid_move and invalid_mode:
             reward -= 2
+        if action == self.last_action and invalid_mode:
+            reward +=1
         reward -= 1
         return reward
     def write_matrix(self, matrix):
@@ -375,22 +377,23 @@ class PacmanAgent:
             random_action = random.choice([0, 1, 2, 3])
             for i in range(6):
                 obs, self.score, done, info = self.game.step(random_action)
-                self.buffer.append(obs)
+                self.buffer.append(info.frame)
             state = self.process_state(self.buffer)
+            lives = 3
             while True:
                 action = self.act(state, eval=True)
                 action_t = action.item()
                 for i in range(3):
                     if not done:
-                        obs, reward, done, _ = self.game.step(action_t)
-                    else:
+                        obs, reward, done, info = self.game.step(action_t)
+                    if lives != info.lives:
+                        lives = info,lives
                         break
-                self.buffer.append(obs)
+                self.buffer.append(info.frame)
                 state = self.process_state(self.buffer)
                 if done:
-                    self.rewards.append(reward)1000
+                    self.rewards.append(reward)
                     self.plot_rewards(name="test.png",items=self.rewards, avg=2)
-                    time.sleep(1)
                     self.game.restart()
                     torch.cuda.empty_cache()
                     break
@@ -400,8 +403,8 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    #agent.load_model(name="1200-511012", eval=True)
+    agent.load_model(name="1000-555621", eval=True)
     agent.rewards = []
     while True:
-        agent.train()
-        #agent.test()
+        #agent.train()
+        agent.test()
