@@ -31,7 +31,7 @@ Experience = namedtuple(
 REVERSED = {0: 1, 1: 0, 2: 3, 3: 2}
 EPS_START = 1.0
 EPS_END = 0.1
-MAX_EPISODES = 1000
+MAX_EPISODES = 1500
 
 
 class ExperienceReplay:
@@ -245,15 +245,17 @@ class PacmanAgent:
         self.target.load_state_dict(torch.load(path))
         path = os.path.join(os.getcwd() + "\\results", f"policy-model-{name}.pt")
         self.policy.load_state_dict(torch.load(path))
-        path = os.path.join(os.getcwd() + "\\results", f"optimizer-{name}.pt")       
-        self.optimizer.load_state_dict(torch.load(path))
+
     
         if eval:
             self.target.eval()
             self.policy.eval()
         else:
+            path = os.path.join(os.getcwd() + "\\results", f"optimizer-{name}.pt")       
+            self.optimizer.load_state_dict(torch.load(path))            
             name_parts = name.split("-")
-            self.episode = int(name_parts[0])
+            # self.episode = int(name_parts[0])
+            self.episode = 0
             self.steps = int(name_parts[1])
             self.target.train()
             self.policy.train()
