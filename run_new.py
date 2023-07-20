@@ -226,32 +226,36 @@ class GameController(object):
 
         return self.state[3:34, :]
     def perform_action(self, action):
-        state = None
+        info = GameState()
+        info.frame = self.get_frame()
         invalid_move = False
+        lives = self.lives
         if not self.pacman.validDirection(action):
             invalid_move = True
         time = self.clock.tick(30) / 1000.0 #dt
-        self.pacman.update(action=action)  #remove time?
+
         self.pellets.update(time)
         self.checkEvents()
         self.eatDots()
         self.checkGhostEvents()
         self.ghosts.update(time)
+
+        self.pacman.update(action=action)  #remove time?
         self.render()
-        state = self.get_frame()
-        info = GameState()
-        info.frame = self.get_frame()
+        if lives == self.lives:
+            info.frame = self.get_frame()
         row_indices, _ = np.where(info.frame == 5)
         info.invalid_move = invalid_move
         info.total_pellets = len(
         self.pellets.pelletList) + len(self.eatenPellets)
         info.collected_pellets = len(self.eatenPellets)
+        info.lives = self.lives
         if row_indices.size > 0:
             info.food_distance = minDistance(info.frame,5,3,[-6,1])
             info.powerup_distance = minDistance(info.frame,5,4,[-6,1])
             info.ghost_distance = minDistance(info.frame,5,-6)
             info.scared_ghost_distance = minDistance(info.frame,5,6)
-        return (state, self.score, self.lives == 0 or (self.pellets.isEmpty()), info)
+        return ([], self.score, self.lives == 0 or (self.pellets.isEmpty()), info)
     def eatDots(self):
         dot = self.pacman.eatDots(self.pellets.pelletList)
         if dot:
