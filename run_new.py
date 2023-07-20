@@ -47,6 +47,9 @@ class GameState:
         self.powerup_distance =-1
         self.ghost_distance = -1
         self.scared_ghost_distance = -1
+        self.x = 0
+        self.y = 0
+
 class GameController(object):
     def __init__(self):
         pygame.init()
@@ -185,10 +188,11 @@ class GameController(object):
             self.counter += 1
         else:
             self.counter=0
+
         total_pellets = len(
         self.pellets.pelletList) + len(self.eatenPellets)
         collected_pellets = len(self.eatenPellets)
-        print("progress",collected_pellets / total_pellets)
+        print("pacman ",pacman_x,pacman_y)
     def get_frame(self):
         raw_maze_data = []
         with open('map.txt', 'r') as f:
@@ -257,6 +261,10 @@ class GameController(object):
         self.pellets.pelletList) + len(self.eatenPellets)
         info.collected_pellets = len(self.eatenPellets)
         info.lives = self.lives
+        pacman_x = int(round(self.pacman.position.x / 16))
+        pacman_y = int(round(self.pacman.position.y / 16))
+        info.x = pacman_x
+        info.y = pacman_y
         if row_indices.size > 0:
             info.food_distance = minDistance(info.frame,5,3,[-6,1])
             info.powerup_distance = minDistance(info.frame,5,4,[-6,1])
