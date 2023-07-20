@@ -185,6 +185,10 @@ class GameController(object):
             self.counter += 1
         else:
             self.counter=0
+        total_pellets = len(
+        self.pellets.pelletList) + len(self.eatenPellets)
+        collected_pellets = len(self.eatenPellets)
+        print("progress",collected_pellets / total_pellets)
     def get_frame(self):
         raw_maze_data = []
         with open('map.txt', 'r') as f:
@@ -227,6 +231,8 @@ class GameController(object):
         return self.state[3:34, :]
     def perform_action(self, action):
         info = GameState()
+        if self.lost == True:
+            self.lost == False
         info.frame = self.get_frame()
         invalid_move = False
         lives = self.lives
@@ -244,6 +250,7 @@ class GameController(object):
         self.render()
         if lives == self.lives:
             info.frame = self.get_frame()
+        done = self.lost
         row_indices, _ = np.where(info.frame == 5)
         info.invalid_move = invalid_move
         info.total_pellets = len(
@@ -255,7 +262,7 @@ class GameController(object):
             info.powerup_distance = minDistance(info.frame,5,4,[-6,1])
             info.ghost_distance = minDistance(info.frame,5,-6)
             info.scared_ghost_distance = minDistance(info.frame,5,6)
-        return ([], self.score, self.lives == 0 or (self.pellets.isEmpty()), info)
+        return ([], self.score, done, info)
     def eatDots(self):
         dot = self.pacman.eatDots(self.pellets.pelletList)
         if dot:
@@ -289,7 +296,7 @@ class GameController(object):
                             self.ghosts.hide()
                             if self.lives <= 0:
                                 self.lost=True
-                                self.restartGame()
+                                #self.restartGame()
                             else:
                                  self.resetLevel()
 

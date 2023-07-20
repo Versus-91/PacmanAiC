@@ -128,6 +128,7 @@ class PacmanAgent:
         return reward
     def get_reward(self, done, lives, hit_ghost, action, prev_score,info:GameState):
         reward = 0
+        progress = 0
         invalid_mode = self.check_cells(info,action)
         if done:
             if lives > 0:
@@ -136,11 +137,12 @@ class PacmanAgent:
             else:
                 reward = -10
             return reward
-        progress =  int((info.collected_pellets / info.total_pellets) * 5)
+        if(info.collected_pellets / info.total_pellets > 0.5):
+            progress += 3
         if self.score - prev_score == 10 :
-            reward += 4 
+            reward += 4  + progress
         if self.score - prev_score == 50:
-            reward += 5 
+            reward += 5 + progress
         if self.score >= 200:
             reward += 3
         if hit_ghost:
@@ -149,8 +151,10 @@ class PacmanAgent:
             reward -= 2
         if info.invalid_move and invalid_mode:
             reward -= 1
-        if self.last_state.food_distance > info.food_distance:
-            reward -= 1
+        # if self.last_state.food_distance > info.food_distance and info.food_distance != 1:
+        #     print("moved away from food")
+        #     reward -= 1
+        reward -= 1
         return reward
     def write_matrix(self, matrix):
         with open("outfile.txt", "wb") as f:
