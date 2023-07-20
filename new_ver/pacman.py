@@ -1,7 +1,7 @@
 import pygame
 from pygame.locals import *
+
 from new_ver.vector import Vectors
-from new_ver.ghost import Ghost
 #from constants import *
 #pacman_col = (255, 255, 0)
 pacman=0
@@ -74,9 +74,9 @@ class mypacman(object): #Pacman
             return down
         return stop
     
-    def update(self,action = None):	
+    def update(self):	
         self.position += self.directions[self.direction]*self.speed#*time #remove time?
-        direction = self.key() if action is None else action
+        direction = self.key()
         if self.overshotTarget():
             self.node = self.target
             if self.node.neighbors[portal] is not None:
@@ -161,4 +161,3 @@ class mypacman(object): #Pacman
             screen.blit(pygame.transform.rotate(player_images [counter //5],270),(p[0]-cellw/2,p[1]-cellh/2))
         if  self.direction == 0:#stop
             screen.blit(pac0,(p[0]-cellw/2,p[1]-cellh/2))
-        

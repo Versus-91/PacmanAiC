@@ -188,11 +188,9 @@ class GameController(object):
             self.counter += 1
         else:
             self.counter=0
-
         total_pellets = len(
         self.pellets.pelletList) + len(self.eatenPellets)
         collected_pellets = len(self.eatenPellets)
-        print("pacman ",pacman_x,pacman_y)
     def get_frame(self):
         raw_maze_data = []
         with open('map.txt', 'r') as f:

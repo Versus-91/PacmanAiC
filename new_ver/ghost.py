@@ -26,7 +26,9 @@ blinky = 4
 pinky = 5
 inky = 6
 clyde = 7
-
+sue=8
+funky=10
+CHASE_SUE=9
 blinky_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/red.png'),(cellw*4/3,cellh*4/3))
 #inky
 inky_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/blue.png'),(cellw*4/3,cellh*4/3))
@@ -34,13 +36,18 @@ inky_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/blue.png
 pinky_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/pink.png'),(cellw*4/3,cellh*4/3))
 #clyde
 clyde_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/orange.png'),(cellw*4/3,cellh*4/3))
+#sue
+sue_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/sue.png'),(cellw*4/3,cellh*4/3))
+#funky
+funky_img=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/funky.png'),(cellw*4/3,cellh*4/3))
+
 
 poweredup=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/powerup.png'),(cellw*4/3,cellh*4/3))
 #dead=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/dead.png'),(cellw*4/3,cellh*4/3))
 dead0=pygame.transform.scale(pygame.image.load(f'assets/ghost_images/dead0.png'),(cellw*4/3,cellh*4/3))
 dead =[]
 for i in range (0,4):
-    dead.append(pygame.transform.scale(pygame.image.load(f'assets/ghost_images/{i}.png'),(cellw*2,cellw*2)))
+    dead.append(pygame.transform.scale(pygame.image.load(f'assets/ghost_images/{i}.png'),(cellw*1.5,cellw*1.5)))
     
 pac0=pygame.transform.scale(pygame.image.load(f'assets/player_images/{0}.png'),(cellw*4/3,cellw*4/3))
 
@@ -124,7 +131,7 @@ class Ghost(object):
     
     def update(self):
         self.position += self.directions[self.direction]*self.speed#*dt
-         
+        self.directionMethod = self.goalDirection
         if self.overshotTarget():
             self.node = self.target
             directions = self.validDirections()
@@ -149,6 +156,21 @@ class Ghost(object):
         elif self.mode.current is CHASE:
             self.chase()
         self.update()
+    def update_blinky(self,dt):
+        self.mode.update(dt)
+        if self.mode.current is SCATTER:
+            self.chase()
+        elif self.mode.current is CHASE:
+            self.chase()
+        self.update()
+    def update_mode_funky(self,dt):
+        self.mode.update_funk(dt)
+        if self.mode.current is SCATTER:
+            self.scatter()
+        elif self.mode.current is CHASE_SUE:
+            self.chase_sue()
+        self.update()
+        
     def frozen(self):
         self.mode.setFreightMode()
         if self.mode.current == FREIGHT:
@@ -162,11 +184,11 @@ class Ghost(object):
         self.visible=True
         self.homeNode.denyAccess(down, self)
         #self.color="blue"
-    #def scatter(self):
-     #   self.goal = Vectors()
+    def scatter(self):
+        self.goal = Vectors()
 
-    #def chase(self):
-    #    self.goal = self.pacman.position
+    def chase(self):
+        self.goal = self.pacman.position
 
     def spawn(self):
         self.goal = self.spawnNode.position
@@ -230,23 +252,71 @@ class Ghost(object):
             else:
                 if self.mode.current == FREIGHT :
                     screen.blit(poweredup,(p[0]-cellw/2,p[1]-cellh/2))
+                elif self.mode.current == SPAWN:
+                    screen.blit(dead0,(p[0]-cellw/2,p[1]-cellh/2))
                 else:
                     screen.blit(dead [counter // 5],(p[0]-cellw,p[1]-cellh))
-                
-                
+class Funky(Ghost):
+    def __init__(self, node, pacman=None, blinky=None):
+        Ghost.__init__(self, node, pacman, sue)
+        self.name = clyde
+        self.color = 'green'
+        self.img =funky_img
+        self.get_angry=False
+        self.setSpeed(4)
+        
+    def scatter(self):
+        self.goal = Vectors(w, h)
+
+    def chase_sue(self):
+        d = self.pacman.position - self.position
+        ds = d.magnitudeSquared()
+        if ds <= (cellw * 8)**2:
+            self.scatter()
+        else:
+            self.goal = self.blinky.position
+                        
+                         
+class Magenda(Ghost):
+    def __init__(self, node, pacman=None, blinky=None):
+        Ghost.__init__(self, node, pacman, blinky)
+        self.name = clyde
+        self.color = 'purple'
+        self.img =sue_img
+        self.get_angry=False
+        self.setSpeed(3.5)
+        
+    def scatter(self):
+        self.goal = Vectors(0, h)
+
+    def chase(self):
+        d = self.pacman.position - self.position
+        ds = d.magnitudeSquared()
+        if ds <= (cellw * 8)**2:
+            self.scatter()
+        else:
+            self.goal = self.pacman.position
+                        
             
 class Blinky(Ghost):
     def __init__(self, node, pacman=None, blinky=None):
-        Ghost.__init__(self, node, pacman, blinky)
+        Ghost.__init__(self, node, pacman,blinky)
         self.name =4
-        self.color = 'green'
+        self.color = 'red'
         self.img=blinky_img
         self.get_angry=False
     def scatter(self):
-        self.goal = Vectors()
-
-    def chase(self):
+        self.goal = Vectors(w,0)
+    def gets_angry(self,counter):
+        self.get_angry=True
+        self.setSpeed(6)
+        self.img=dead [counter // 5]
+        self.radius=15
         self.goal = self.pacman.position
+    #def chase(self):
+     #   self.goal = self.pacman.position
+        
+        
 class Clyde(Ghost):
     def __init__(self, node, pacman=None, blinky=None):
         Ghost.__init__(self, node, pacman, blinky)
@@ -254,6 +324,7 @@ class Clyde(Ghost):
         self.color = 'orange'
         self.img=clyde_img
         self.get_angry=False
+        self.setSpeed(3)
 
     def scatter(self):
         self.goal = Vectors(0, h)
@@ -261,11 +332,12 @@ class Clyde(Ghost):
     def chase(self):
         d = self.pacman.position - self.position
         ds = d.magnitudeSquared()
-        if ds <= (cellw * 5)**2:
+        if ds <= (cellw * 8)**2:
             self.scatter()
         else:
-            self.goal = self.pacman.position + self.pacman.directions[self.pacman.direction] * cellw * 5
+            self.goal = self.pacman.position        
         
+
 class Pinky(Ghost):
     def __init__(self, node, pacman=None, blinky=None):
         Ghost.__init__(self, node, pacman, blinky)
@@ -273,9 +345,9 @@ class Pinky(Ghost):
         self.color = 'pink'
         self.img=pinky_img
         self.get_angry=False
-
+        self.setSpeed(3.5)
     def scatter(self):
-        self.goal = Vectors(w, 0)
+        self.goal = Vectors(0, 0)
     def gets_angry(self,counter):
         self.get_angry=True
         self.setSpeed(6)
@@ -283,7 +355,10 @@ class Pinky(Ghost):
         self.radius=15
         self.goal = self.pacman.position
     def chase(self):
-        self.goal = self.pacman.position + self.pacman.directions[self.pacman.direction] * cellw * 5
+        self.goal = self.pacman.position + self.pacman.directions[self.pacman.direction] * cellw * 2
+        
+        
+
 class Inky(Ghost):
     def __init__(self, node, pacman=None, blinky=None):
         Ghost.__init__(self, node, pacman, blinky)
@@ -291,6 +366,7 @@ class Inky(Ghost):
         self.color = 'blue'
         self.img=inky_img
         self.get_angry=False
+        self.setSpeed(3)
 
     def scatter(self):
         self.goal = Vectors(w, h) # 
@@ -301,20 +377,30 @@ class Inky(Ghost):
         self.goal = self.blinky.position + vec2
 
 class GhostGroup(object):
-    def __init__(self, node, pacman):
+    def __init__(self, node, pacman,level=0):
         self.blinky = Blinky(node, pacman)
         self.pinky = Pinky(node, pacman)
         self.inky = Inky(node, pacman, self.blinky)
+        
         self.clyde = Clyde(node, pacman)
         self.ghosts = [self.blinky, self.pinky, self.inky, self.clyde]
-
+        
+        if level>0:
+            self.sue = Magenda(node,pacman)
+            self.ghosts.append(self.sue)
+        if level>1:
+            self.funky = Funky(node,pacman,self.sue)
+            self.ghosts.append(self.funky)    
     def __iter__(self):
         return iter(self.ghosts)
 
     def update(self, dt):
+        #for ghost in [self.pinky, self.inky, self.clyde]:
         for ghost in self:
+            
             ghost.update_mode(dt)
-
+        #self.blinky.update_blinky(dt)
+        #self.blinky.update_mode(dt)
     def startFreight(self):
         for ghost in self:
             ghost.frozen()

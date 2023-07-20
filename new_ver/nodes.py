@@ -18,6 +18,7 @@ blinky = 4
 pinky = 5
 inky = 6
 clyde = 7
+sue=8
 cellw = 16   #TILEWIDTH
 cellh= 16   #TILEHEIGHT
 class Node(object):
