@@ -28,6 +28,7 @@ clyde = 7
 import numpy as np
 import pygame
 from pygame.locals import *
+from bfs import minDistance
 from new_ver.pacman import mypacman 
 from new_ver.nodes import NodeGroup,PelletGroup
 from new_ver.ghost import GhostGroup
@@ -38,10 +39,14 @@ for i in range (1,5):
 class GameState:
     def __init__(self):
         self.lives = 0
+        self.frame = []
         self.invalid_move = False
         self.total_pellets = 0
         self.collected_pellets = 0
-
+        self.food_distance = -1
+        self.powerup_distance =-1
+        self.ghost_distance = -1
+        self.scared_ghost_distance = -1
 class GameController(object):
     def __init__(self):
         pygame.init()
@@ -202,17 +207,18 @@ class GameController(object):
                 self.state[y][x] = 3
             else:
                 self.state[y][x] = 4
-        x = int(round(self.pacman.position.x / 16))
-        y = int(round(self.pacman.position.y / 16))
-        self.state[y][x] = 5
+        pacman_x = int(round(self.pacman.position.x / 16))
+        pacman_y = int(round(self.pacman.position.y / 16))
+        self.state[pacman_y][pacman_x] = 5
         assert self.state[y][x] != 1
         for ghost in enumerate(self.ghosts):
             x = int(round(ghost[1].position.x / 16))
             y = int(round(ghost[1].position.y / 16))
             if ghost[1].mode.current is not FREIGHT and ghost[1].mode.current is not SPAWN:
                 self.state[y][x] = -6
-            else:
-                self.state[y][x] = 6
+            elif ghost[1].mode.current is FREIGHT:
+                if self.state[y][x] != 5:
+                    self.state[y][x] = 6
         # dist = math.sqrt((self.pacman_prev.x - x)**2 + (self.pacman_prev.y - x)**2)
         # if abs(self.pacman_prev.x - x) >= 16 or abs(self.pacman_prev.y - y) >= 16:
         #     self.pacman_prev = self.pacman.position
@@ -234,11 +240,14 @@ class GameController(object):
         self.render()
         state = self.get_frame()
         info = GameState()
-        info.lives = self.lives
+        info.frame = self.get_frame()
+        row_indices, _ = np.where(info.frame == 5)
         info.invalid_move = invalid_move
-        info.total_pellets = len(
-            self.pellets.pelletList) + len(self.eatenPellets)
-        info.collected_pellets = len(self.eatenPellets)
+        if row_indices.size > 0:
+            info.food_distance = minDistance(info.frame,5,3,[-6,1])
+            info.powerup_distance = minDistance(info.frame,5,4,[-6,1])
+            info.ghost_distance = minDistance(info.frame,5,-6)
+            info.scared_ghost_distance = minDistance(info.frame,5,6)
         return (state, self.score, self.lives == 0 or (self.pellets.isEmpty()), info)
     def eatDots(self):
         dot = self.pacman.eatDots(self.pellets.pelletList)
