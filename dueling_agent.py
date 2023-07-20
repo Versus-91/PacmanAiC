@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from collections import deque, namedtuple
 import random
 import time
-from cnn import Conv2dNetwork, Conv2dNetworkDuelling, PacmanNet
+from cnn import Conv2dNetwork, PacmanNet
 from game import GameWrapper
 import random
 import matplotlib
@@ -19,7 +19,7 @@ from run import GameState
 matplotlib.use("Agg")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 SAVE_EPISODE_FREQ = 100
 GAMMA = 0.99
 MOMENTUM = 0.95
@@ -185,8 +185,8 @@ class PacmanAgent:
 
         self.optimizer.zero_grad()
         loss.backward()
-        for param in self.policy.parameters():
-            param.grad.data.clamp_(-1, 1)
+        # for param in self.policy.parameters():
+        #     param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
         if self.steps % sync_every == 0:
             self.target.load_state_dict(self.policy.state_dict())
@@ -327,8 +327,6 @@ class PacmanAgent:
                     obs, self.score, done, info = self.game.step(action_t)
                     if lives != info.lives:
                         break
-                else:
-                    break
             self.buffer.append(info.frame)
             hit_ghost = False
             if lives != info.lives:
@@ -355,8 +353,8 @@ class PacmanAgent:
                 done,
             )
             state = next_state
-            if self.steps % 2 == 0:
-                self.learn()
+            # if self.steps % 2 == 0:
+            self.learn()
             if not info.invalid_move:
                 self.last_action = action_t
             # if self.steps % 100000 == 0:
@@ -369,7 +367,6 @@ class PacmanAgent:
                 self.rewards.append(self.score)
                 self.plot_rewards(items= self.rewards, avg=50)
                 #self.plot_rewards(items = self.losses,label="losses",name="losses.png", avg=50)
-                time.sleep(1)
                 self.game.restart()
                 torch.cuda.empty_cache()
                 break
