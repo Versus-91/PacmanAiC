@@ -176,12 +176,12 @@ class GameController(object):
         self.score += points        
     def update(self): #remove time later !
         time = self.clock.tick(30) / 1000.0 
-        self.pacman.update()  #remove time?
         self.pellets.update(time)
+        self.checkGhostEvents()
         self.checkEvents()
         self.eatDots()
-        self.checkGhostEvents()
         self.ghosts.update(time)
+        self.pacman.update()  #remove time?
         self.render()
         self.get_frame()
         if self.counter < 19: #spped of eating my pacman 
