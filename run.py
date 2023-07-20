@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pygame
 from pygame.locals import *
+from bfs import minDistance
 from constants import *
 from pacman import Pacman
 from nodes import NodeGroup
@@ -232,6 +233,12 @@ class GameController(object):
         info.total_pellets = len(
             self.pellets.pelletList) + len(self.eatenPellets)
         info.collected_pellets = len(self.eatenPellets)
+        row_indices, _ = np.where(info.frame == 5)
+        if row_indices.size > 0:
+            info.food_distance = minDistance(info.frame,5,3,[-6,1])
+            info.powerup_distance = minDistance(info.frame,5,4,[-6,1])
+            info.ghost_distance = minDistance(info.frame,5,-6)
+            info.scared_ghost_distance = minDistance(info.frame,5,6)
         return (state, self.score, self.lives == 0 or (self.pellets.isEmpty()), info)
 
     def checkEvents(self):
