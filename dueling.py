@@ -336,9 +336,8 @@ class PacmanAgent:
                 hit_ghost = True
                 lives -= 1
                 if not done:
-                    for i in range(2):
+                    for i in range(3):
                         _, _, _, _ = self.game.step(action_t)
-            #print(info.x,info.y)
             # next_state = torch.tensor(obs).float().to(device)
             next_state = self.process_state(self.buffer)
 
