@@ -175,13 +175,14 @@ class GameController(object):
     def updateScore(self, points):
         self.score += points        
     def update(self): #remove time later !
-        time = self.clock.tick(30) / 1000.0 
+        time = self.clock.tick(60) / 1000.0 
         self.pellets.update(time)
         self.checkGhostEvents()
         self.checkEvents()
         self.eatDots()
-        self.ghosts.update(time)
         self.pacman.update(time)  #remove time?
+        self.ghosts.blinky.pacman = self.pacman
+        self.ghosts.update(time)
         self.render()
         self.get_frame()
         if self.counter < 19: #spped of eating my pacman 
@@ -240,15 +241,16 @@ class GameController(object):
         lives = self.lives
         if not self.pacman.validDirection(action):
             invalid_move = True
-        time = self.clock.tick(120) / 1000.0 #dt
+        time = self.clock.tick(60) / 1000.0 #dt
 
         self.pellets.update(time)
         self.checkEvents()
         self.eatDots()
         self.checkGhostEvents()
+        self.pacman.update(time,action=action)  #remove time?
+        self.ghosts.blinky.pacman = self.pacman
         self.ghosts.update(time)
 
-        self.pacman.update(time,action=action)  #remove time?
         self.render()
         if lives == self.lives:
             info.frame = self.get_frame()
@@ -259,10 +261,7 @@ class GameController(object):
         self.pellets.pelletList) + len(self.eatenPellets)
         info.collected_pellets = len(self.eatenPellets)
         info.lives = self.lives
-        pacman_x = int(round(self.pacman.position.x / 16))
-        pacman_y = int(round(self.pacman.position.y / 16))
-        info.x = pacman_x
-        info.y = pacman_y
+
         if row_indices.size > 0:
             info.food_distance = minDistance(info.frame,5,3,[-6,1])
             info.powerup_distance = minDistance(info.frame,5,4,[-6,1])

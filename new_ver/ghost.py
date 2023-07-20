@@ -131,7 +131,6 @@ class Ghost(object):
     
     def update(self,dt):
         self.position += self.directions[self.direction]*self.speed*dt
-        self.directionMethod = self.goalDirection
         if self.overshotTarget():
             self.node = self.target
             directions = self.validDirections()
@@ -313,8 +312,9 @@ class Blinky(Ghost):
         self.img=dead [counter // 5]
         self.radius=15
         self.goal = self.pacman.position
-    #def chase(self):
-     #   self.goal = self.pacman.position
+    def chase(self):
+       self.goal = self.pacman.position
+       print("updating oal",self.goal)
         
         
 class Clyde(Ghost):

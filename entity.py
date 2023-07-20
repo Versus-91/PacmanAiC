@@ -42,6 +42,7 @@ class Entity(object):
 
             self.setPosition()
           
+        
     def validDirection(self, direction):
         if direction is not STOP:
             if self.name in self.node.access[direction]:
