@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from constants import *
-from run import GameController
+from new_ver import GameController
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
 from PIL import Image
