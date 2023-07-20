@@ -181,7 +181,7 @@ class GameController(object):
         self.checkEvents()
         self.eatDots()
         self.ghosts.update(time)
-        self.pacman.update()  #remove time?
+        self.pacman.update(time)  #remove time?
         self.render()
         self.get_frame()
         if self.counter < 19: #spped of eating my pacman 
@@ -240,7 +240,7 @@ class GameController(object):
         lives = self.lives
         if not self.pacman.validDirection(action):
             invalid_move = True
-        time = self.clock.tick(30) / 1000.0 #dt
+        time = self.clock.tick(120) / 1000.0 #dt
 
         self.pellets.update(time)
         self.checkEvents()
@@ -248,7 +248,7 @@ class GameController(object):
         self.checkGhostEvents()
         self.ghosts.update(time)
 
-        self.pacman.update(action=action)  #remove time?
+        self.pacman.update(time,action=action)  #remove time?
         self.render()
         if lives == self.lives:
             info.frame = self.get_frame()

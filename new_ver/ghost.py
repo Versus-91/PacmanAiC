@@ -57,7 +57,7 @@ class Ghost(object):
         self.directions = {stop:Vectors(),left:Vectors(-1,0), right:Vectors(1,0), up:Vectors(0,-1), 
                            down:Vectors(0,1) }
         self.direction = stop
-        self.setSpeed(4)
+        self.setSpeed(100)
         self.radius = 10
         self.collideRadius = 5
         self.color = 'blue'
@@ -129,8 +129,8 @@ class Ghost(object):
         self.speed = speed * cellw / 16
     
     
-    def update(self):
-        self.position += self.directions[self.direction]*self.speed#*dt
+    def update(self,dt):
+        self.position += self.directions[self.direction]*self.speed*dt
         self.directionMethod = self.goalDirection
         if self.overshotTarget():
             self.node = self.target
@@ -155,7 +155,7 @@ class Ghost(object):
             self.scatter()
         elif self.mode.current is CHASE:
             self.chase()
-        self.update()
+        self.update(dt)
     def update_blinky(self,dt):
         self.mode.update(dt)
         if self.mode.current is SCATTER:
@@ -174,12 +174,12 @@ class Ghost(object):
     def frozen(self):
         self.mode.setFreightMode()
         if self.mode.current == FREIGHT:
-            self.setSpeed(3)
+            self.setSpeed(50)
             self.directionMethod = self.randomDirection  
             #self.color="green"
 
     def normalMode(self):
-        self.setSpeed(5)
+        self.setSpeed(100)
         self.directionMethod = self.goalDirection
         self.visible=True
         self.homeNode.denyAccess(down, self)
@@ -200,7 +200,7 @@ class Ghost(object):
     def startSpawn(self):
         self.mode.setSpawnMode()
         if self.mode.current == SPAWN:
-            self.setSpeed(10)
+            self.setSpeed(150)
             self.directionMethod = self.goalDirection
             self.spawn()
               
@@ -231,7 +231,7 @@ class Ghost(object):
     def reset(self):
         self.setStartNode(self.startNode)
         self.direction = stop
-        self.speed = 5
+        self.speed = 100
         self.visible = True  
         self.points = 200
         self.goal = Vectors()  # Reset the goal as well
@@ -263,7 +263,7 @@ class Funky(Ghost):
         self.color = 'green'
         self.img =funky_img
         self.get_angry=False
-        self.setSpeed(4)
+        self.setSpeed(100)
         
     def scatter(self):
         self.goal = Vectors(w, h)
@@ -284,7 +284,7 @@ class Magenda(Ghost):
         self.color = 'purple'
         self.img =sue_img
         self.get_angry=False
-        self.setSpeed(3.5)
+        self.setSpeed(100)
         
     def scatter(self):
         self.goal = Vectors(0, h)
@@ -309,7 +309,7 @@ class Blinky(Ghost):
         self.goal = Vectors(w,0)
     def gets_angry(self,counter):
         self.get_angry=True
-        self.setSpeed(6)
+        self.setSpeed(100)
         self.img=dead [counter // 5]
         self.radius=15
         self.goal = self.pacman.position
@@ -324,7 +324,7 @@ class Clyde(Ghost):
         self.color = 'orange'
         self.img=clyde_img
         self.get_angry=False
-        self.setSpeed(3)
+        self.setSpeed(100)
 
     def scatter(self):
         self.goal = Vectors(0, h)
@@ -345,12 +345,12 @@ class Pinky(Ghost):
         self.color = 'pink'
         self.img=pinky_img
         self.get_angry=False
-        self.setSpeed(3.5)
+        self.setSpeed(100)
     def scatter(self):
         self.goal = Vectors(0, 0)
     def gets_angry(self,counter):
         self.get_angry=True
-        self.setSpeed(6)
+        self.setSpeed(110)
         self.img=dead [counter // 5]
         self.radius=15
         self.goal = self.pacman.position
@@ -366,7 +366,7 @@ class Inky(Ghost):
         self.color = 'blue'
         self.img=inky_img
         self.get_angry=False
-        self.setSpeed(3)
+        self.setSpeed(100)
 
     def scatter(self):
         self.goal = Vectors(w, h) # 
@@ -397,7 +397,6 @@ class GhostGroup(object):
     def update(self, dt):
         #for ghost in [self.pinky, self.inky, self.clyde]:
         for ghost in self:
-            
             ghost.update_mode(dt)
         #self.blinky.update_blinky(dt)
         #self.blinky.update_mode(dt)
