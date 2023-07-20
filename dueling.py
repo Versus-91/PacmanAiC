@@ -150,7 +150,6 @@ class PacmanAgent:
         if info.invalid_move and invalid_mode:
             reward -= 1
         if self.last_state.food_distance > info.food_distance:
-            print("away")
             reward -= 1
         return reward
     def write_matrix(self, matrix):

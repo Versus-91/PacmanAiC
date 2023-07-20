@@ -243,6 +243,9 @@ class GameController(object):
         info.frame = self.get_frame()
         row_indices, _ = np.where(info.frame == 5)
         info.invalid_move = invalid_move
+        info.total_pellets = len(
+        self.pellets.pelletList) + len(self.eatenPellets)
+        info.collected_pellets = len(self.eatenPellets)
         if row_indices.size > 0:
             info.food_distance = minDistance(info.frame,5,3,[-6,1])
             info.powerup_distance = minDistance(info.frame,5,4,[-6,1])
@@ -252,6 +255,7 @@ class GameController(object):
     def eatDots(self):
         dot = self.pacman.eatDots(self.pellets.pelletList)
         if dot:
+            self.eatenPellets.append(dot)
             self.pellets.numEaten += 1
             self.updateScore(dot.points)
             self.pellets.pelletList.remove(dot)
