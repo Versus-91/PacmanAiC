@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from collections import deque, namedtuple
 import random
 import time
-from cnn import Conv2dNetwork, Conv2dNetworkDuelling
+from cnn import Conv2dNetwork, Conv2dNetworkDuelling, PacmanNet
 from game import GameWrapper
 import random
 import matplotlib
@@ -52,8 +52,10 @@ class PacmanAgent:
     def __init__(self):
         self.steps = 0
         self.score = 0
-        self.target = Conv2dNetworkDuelling().to(device)
-        self.policy = Conv2dNetworkDuelling().to(device)
+        self.target = PacmanNet().to(device)
+        self.policy = PacmanNet().to(device)
+        self.target.load_state_dict(self.policy.state_dict())
+        self.target.eval()
         self.memory = ExperienceReplay(20000)
         self.game = GameWrapper()
         self.lr = 0.0003
@@ -169,17 +171,12 @@ class PacmanAgent:
         new_state_batch = torch.cat(batch.new_state)
         reward_batch = torch.cat(batch.reward)
         dones = torch.tensor(batch.done, dtype=torch.float32).to(device)
-        # Compute the Q-values for the current state using the policy network
         predicted_Q_values = self.policy(state_batch)
         predicted_state_action_values = predicted_Q_values.gather(1, action_batch)
-
-        # Compute the Q-values for the next state using the target network
         with torch.no_grad():
             next_Q_values_target = self.target(new_state_batch)
             next_state_values = next_Q_values_target.max(1)[0]
 
-
-        # Compute the target Q-values using the Dueling DQN formula
         target_values = reward_batch + GAMMA * (1 - dones) * next_state_values
         target_values = target_values.unsqueeze(1)
         criterion = torch.nn.SmoothL1Loss()
@@ -188,11 +185,9 @@ class PacmanAgent:
 
         self.optimizer.zero_grad()
         loss.backward()
-        # Optionally clip gradients (uncomment if necessary)
-        # for param in self.policy.parameters():
-        #     param.grad.data.clamp_(-1, 1)
+        for param in self.policy.parameters():
+            param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-
         if self.steps % sync_every == 0:
             self.target.load_state_dict(self.policy.state_dict())
 

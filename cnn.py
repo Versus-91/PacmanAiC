@@ -24,9 +24,9 @@ class Conv2dNetwork(nn.Module):
         x = self.relu3(x)
         x = self.fc2(x)
         return x
-class Conv2dNetworkDuelling(nn.Module):
+class PacmanNet(nn.Module):
     def __init__(self):
-        super(Conv2dNetworkDuelling, self).__init__()
+        super(PacmanNet, self).__init__()
         self.conv1 = nn.Conv2d(4, 16, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
