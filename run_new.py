@@ -48,6 +48,7 @@ class GameState:
         self.powerup_distance =-1
         self.ghost_distance = -1
         self.scared_ghost_distance = -1
+        self.image = []
         self.x = 0
         self.y = 0
 
@@ -292,6 +293,7 @@ class GameController(object):
         if self.lost == True:
             self.lost == False
         info.frame = self.get_frame()
+        info.image = pygame.surfarray.array3d(pygame.display.get_surface())
         info.state = self.get_state()
         invalid_move = False
         lives = self.lives
@@ -311,6 +313,7 @@ class GameController(object):
         if lives == self.lives:
             info.frame = self.get_frame()
             info.state = self.get_state()
+            info.image = pygame.surfarray.array3d(pygame.display.get_surface())
         done = self.lost
         row_indices, _ = np.where(info.frame == 5)
         info.invalid_move = invalid_move
@@ -318,7 +321,6 @@ class GameController(object):
         self.pellets.pelletList) + len(self.eatenPellets)
         info.collected_pellets = len(self.eatenPellets)
         info.lives = self.lives
-
         if row_indices.size > 0:
             info.food_distance = minDistance(info.frame,5,3,[-6,1])
             info.powerup_distance = minDistance(info.frame,5,4,[-6,1])
@@ -373,7 +375,6 @@ class GameController(object):
                 
 
     def render(self):
-        
         self.screen.blit(self.background, (0, 0))
         self.nodes.render(self.screen,self.level_map)
         self.pellets.render(self.screen)
