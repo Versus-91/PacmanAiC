@@ -133,8 +133,7 @@ class mypacman(object): #Pacman
     def collide(self, other):
         d = self.position - other.position
         dSquared = d.magnitudeSquared()
-        #rSquared = (self.radius + other.radius)**2
-        rSquared = (self.radius)**2
+        rSquared = (10)**2
         if dSquared <= rSquared:
             return True
         return False

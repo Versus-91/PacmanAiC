@@ -351,6 +351,7 @@ class GameController(object):
                 if ghost.mode.current is FREIGHT:
                     # ghost.visible = False
                     self.updateScore(ghost.points)
+                    self.ghosts.updatePoints()
                     self.nodes.allowHomeAccess(ghost)
                     ghost.startSpawn()    
                 elif ghost.mode.current is not SPAWN:

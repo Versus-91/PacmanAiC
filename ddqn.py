@@ -327,7 +327,6 @@ class PacmanAgent:
                         break
                 hit_ghost = False
                 if lives != info.lives:
-                    self.plot()
                     hit_ghost = True
                     lives -= 1
                 self.images.append(self.processs_image(info.image))
@@ -408,8 +407,7 @@ class PacmanAgent:
 
 if __name__ == '__main__':
     agent = PacmanAgent()
-    #agent.load_model(name="1500-746581", eval=True)
-    agent.episode = 0
+    agent.load_model(name="200-43223", eval=False)
     agent.rewards = []
     while True:
         agent.train()
