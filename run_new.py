@@ -40,6 +40,7 @@ class GameState:
     def __init__(self):
         self.lives = 0
         self.frame = []
+        self.state = []
         self.invalid_move = False
         self.total_pellets = 0
         self.collected_pellets = 0
@@ -61,7 +62,7 @@ class GameController(object):
         self.won=False
         self.lost=False
         self.score = 0
-        
+        self.raw_maze = []
         self.timer=0
         self.font=pygame.font.Font('freesansbold.ttf', 20)
         
@@ -180,9 +181,11 @@ class GameController(object):
         self.checkGhostEvents()
         self.checkEvents()
         self.eatDots()
-        self.pacman.update(time)  #remove time?
-        self.ghosts.blinky.pacman = self.pacman
         self.ghosts.update(time)
+        self.pacman.update(time)  #remove time?
+        for ghost in self.ghosts.ghosts:
+            ghost.pacman = self.pacman
+
         self.render()
         self.get_frame()
         if self.counter < 19: #spped of eating my pacman 
@@ -232,11 +235,64 @@ class GameController(object):
         #     print("move",self.pacman.position)
 
         return self.state[3:34, :]
+
+    def direction_state(self, direction):
+        match direction:
+            case 0:
+                return 4
+            case 1:
+                return 5
+            case -1:
+                return 6
+            case 2:
+                return 7
+            case -2:
+                return 8
+    def get_state(self):
+        if len(self.raw_maze) == 0:
+            raw_maze_data = []
+            with open('map.txt', 'r') as f:
+                for line in f:
+                    raw_maze_data.append(line.split())
+            self.raw_maze = np.array(raw_maze_data)
+        maze_data = np.array(self.raw_maze)
+        pellets = np.zeros(maze_data.shape)
+        ghosts = np.zeros(maze_data.shape)
+        pacman = np.zeros(maze_data.shape)
+        walls = np.zeros(maze_data.shape)
+        for idx, values in enumerate(maze_data):
+            for id, value in enumerate(values):
+                if value in ['9', '=', 'X','3','4','5','6','7','8']:
+                    walls[idx][id] = 1
+
+        for idx, pellet in enumerate(self.pellets.pelletList):
+            x = int(pellet.position.x / 16)
+            y = int(pellet.position.y / 16)
+            if pellet.name == 1:
+                pellets[y][x] = 2
+            else:
+                pellets[y][x] = 3
+        x = int(round(self.pacman.position.x / 16))
+        y = int(round(self.pacman.position.y / 16))
+        # assert game[y][x] != 1
+        pacman[y][x] = self.direction_state(self.pacman.direction)
+        assert walls[y][x] != 1
+        for ghost in enumerate(self.ghosts):
+            x = int(round(ghost[1].position.x / 16))
+            y = int(round(ghost[1].position.y / 16))
+            if ghost[1].mode.current is not FREIGHT and ghost[1].mode.current is not SPAWN:
+                ghosts[y][x] = -1 * \
+                    self.direction_state(ghost[1].direction)
+            elif ghost[1].mode.current is FREIGHT:
+                ghosts[y][x] = self.direction_state(ghost[1].direction)
+
+        return [walls[3:34, :], pellets[3:34, :], pacman[3:34, :], ghosts[3:34, :]]
     def perform_action(self, action):
         info = GameState()
         if self.lost == True:
             self.lost == False
         info.frame = self.get_frame()
+        info.state = self.get_state()
         invalid_move = False
         lives = self.lives
         if not self.pacman.validDirection(action):
@@ -247,13 +303,14 @@ class GameController(object):
         self.checkEvents()
         self.eatDots()
         self.checkGhostEvents()
-        self.pacman.update(time,action=action)  #remove time?
-        self.ghosts.blinky.pacman = self.pacman
         self.ghosts.update(time)
-
+        self.pacman.update(time,action=action)  #remove time?
+        for ghost in self.ghosts.ghosts:
+            ghost.pacman = self.pacman
         self.render()
         if lives == self.lives:
             info.frame = self.get_frame()
+            info.state = self.get_state()
         done = self.lost
         row_indices, _ = np.where(info.frame == 5)
         info.invalid_move = invalid_move

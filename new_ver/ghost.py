@@ -314,7 +314,6 @@ class Blinky(Ghost):
         self.goal = self.pacman.position
     def chase(self):
        self.goal = self.pacman.position
-       print("updating oal",self.goal)
         
         
 class Clyde(Ghost):
