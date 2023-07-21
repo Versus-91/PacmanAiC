@@ -1,7 +1,13 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[2]:
+
+
 import pygame
 from pygame.locals import *
-
 from new_ver.vector import Vectors
+from new_ver.ghost import Ghost
 #from constants import *
 #pacman_col = (255, 255, 0)
 pacman=0
@@ -18,10 +24,6 @@ SCATTER = 0
 CHASE = 1
 FREIGHT = 2
 SPAWN = 3
-player_images =[]
-for i in range (1,5):
-    player_images.append(pygame.transform.scale(pygame.image.load(f'assets/player_images/{i}.png'),(cellw*4/3,cellw*4/3)))
-pac0=pygame.transform.scale(pygame.image.load(f'assets/player_images/{0}.png'),(cellw*4/3,cellw*4/3))
 class mypacman(object): #Pacman
     def __init__(self,node):
         #Ghost.__init__(self, node )
@@ -31,7 +33,7 @@ class mypacman(object): #Pacman
                            down:Vectors(0,1) }
         
         self.direction = right
-        self.speed = 100
+        self.speed = 5
         self.radius = cellw/2 #can delete!
         #self.color = pacman_col
         self.node = node
@@ -39,7 +41,7 @@ class mypacman(object): #Pacman
         self.startNode=node
         self.target = node
         self.alive = True
-        self.before_stop=0
+        
     def setStartNode(self, node):
         self.node = self.startNode
         #self.startNode = node
@@ -74,8 +76,8 @@ class mypacman(object): #Pacman
             return down
         return stop
     
-    def update(self,time,action= None):	
-        self.position += self.directions[self.direction]*self.speed*time 
+    def update(self,action=None):	
+        self.position += self.directions[self.direction]*self.speed#*time #remove time?
         direction = self.key() if action is None else action
         if self.overshotTarget():
             self.node = self.target
@@ -83,13 +85,11 @@ class mypacman(object): #Pacman
                 self.node = self.node.neighbors[portal]
             self.target = self.getNewTarget(direction)
             if self.target is not self.node:
-                self.before_stop=self.direction
                 self.direction = direction
             else:
                 self.target = self.getNewTarget(self.direction)
 
             if self.target is self.node:
-                self.before_stop=self.direction
                 self.direction = stop
             self.setPosition()
         else: 
@@ -133,8 +133,7 @@ class mypacman(object): #Pacman
     def collide(self, other):
         d = self.position - other.position
         dSquared = d.magnitudeSquared()
-        #rSquared = (self.radius + other.radius)**2
-        rSquared = (self.radius)**2
+        rSquared = (self.radius + other.radius)**2
         if dSquared <= rSquared:
             return True
         return False
@@ -144,20 +143,7 @@ class mypacman(object): #Pacman
                 return dot
         return None
     
-    def draw(self, screen,counter): #render
+    def draw(self, screen): #render
         p = self.position.asInt()
-        #pygame.draw.circle(screen, 'yellow', p, self.radius)
-       
-        if self.direction == -2: #right looking
-            screen.blit(player_images [counter //5],(p[0]-cellw/2,p[1]-cellh/2))
+        pygame.draw.circle(screen, 'yellow', p, self.radius)
 
-        if self.direction == 2: #left
-            screen.blit(pygame.transform.flip(player_images [counter //5],True,False),(p[0]-cellw/2,p[1]-cellh/2))
-
-        if self.direction == 1:#up
-            screen.blit(pygame.transform.rotate(player_images [counter //5],90),(p[0]-cellw/2,p[1]-cellh/2))
-
-        if self.direction == -1:#down
-            screen.blit(pygame.transform.rotate(player_images [counter //5],270),(p[0]-cellw/2,p[1]-cellh/2))
-        if  self.direction == 0:#stop
-            screen.blit(pac0,(p[0]-cellw/2,p[1]-cellh/2))
