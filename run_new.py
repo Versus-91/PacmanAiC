@@ -123,7 +123,7 @@ class GameController(object):
         self.score += points        
     def update(self): #remove time later !
         time = self.clock.tick(30) / 1000.0 #dt
-        self.pacman.update()  #remove time?
+        self.pacman.update(time)  #remove time?
         self.pellets.update(time)
         self.checkEvents()
         self.eatDots()
@@ -175,8 +175,8 @@ class GameController(object):
         invalid_move = False
         if not self.pacman.validDirection(action):
             invalid_move = True
-        time = self.clock.tick(30) / 1000.0 #dt
-        self.pacman.update(action=action)  #remove time?
+        time = self.clock.tick(60) / 1000.0 #dt
+        self.pacman.update(time,ction=action)  #remove time?
         self.pellets.update(time)
         self.checkEvents()
         self.eatDots()

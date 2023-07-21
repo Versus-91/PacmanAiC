@@ -32,7 +32,7 @@ class Ghost(object):
         self.directions = {stop:Vectors(),left:Vectors(-1,0), right:Vectors(1,0), up:Vectors(0,-1), 
                            down:Vectors(0,1) }
         self.direction = stop
-        self.setSpeed(5)
+        self.setSpeed(100)
         self.radius = 10
         self.collideRadius = 5
         self.color = 'blue'
@@ -102,8 +102,8 @@ class Ghost(object):
 
     def setSpeed(self, speed):
         self.speed = speed * cellw / 16
-    def update(self):
-        self.position += self.directions[self.direction]*self.speed#*dt
+    def update(self,dt):
+        self.position += self.directions[self.direction]*self.speed*dt
          
         if self.overshotTarget():
             self.node = self.target
@@ -126,16 +126,16 @@ class Ghost(object):
             self.scatter()
         elif self.mode.current is CHASE:
             self.chase()
-        self.update()
+        self.update(dt)
     def frozen(self):
         self.mode.setFreightMode()
         if self.mode.current == FREIGHT:
-            self.setSpeed(3)
+            self.setSpeed(50)
             self.directionMethod = self.randomDirection  
             #self.color="green"
 
     def normalMode(self):
-        self.setSpeed(5)
+        self.setSpeed(100)
         self.directionMethod = self.goalDirection
         self.visible=True
         self.homeNode.denyAccess(down, self)
@@ -180,7 +180,7 @@ class Ghost(object):
     def reset(self):
         self.setStartNode(self.startNode)
         self.direction = stop
-        self.speed = 5
+        self.speed = 100
         self.visible = True  
         self.points = 200
         self.directionMethod = self.goalDirection

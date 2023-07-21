@@ -33,7 +33,7 @@ class mypacman(object): #Pacman
                            down:Vectors(0,1) }
         
         self.direction = right
-        self.speed = 5
+        self.speed = 100
         self.radius = cellw/2 #can delete!
         #self.color = pacman_col
         self.node = node
@@ -76,8 +76,8 @@ class mypacman(object): #Pacman
             return down
         return stop
     
-    def update(self,action=None):	
-        self.position += self.directions[self.direction]*self.speed#*time #remove time?
+    def update(self,time,action=None):	
+        self.position += self.directions[self.direction]*self.speed * time 
         direction = self.key() if action is None else action
         if self.overshotTarget():
             self.node = self.target
