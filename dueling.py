@@ -18,7 +18,7 @@ from run import GameState
 matplotlib.use("Agg")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 N_ACTIONS = 4
-BATCH_SIZE = 64
+BATCH_SIZE = 124
 SAVE_EPISODE_FREQ = 100
 GAMMA = 0.99
 MOMENTUM = 0.95
@@ -57,7 +57,7 @@ class PacmanAgent:
         self.target.eval()
         self.memory = ExperienceReplay(20000)
         self.game = GameWrapper()
-        self.lr = 0.0003
+        self.lr = 0.0005
         self.last_action = 0
         self.buffer = deque(maxlen=4)
         self.last_reward = -1
@@ -143,19 +143,22 @@ class PacmanAgent:
         if self.score - prev_score == 10 :
             reward += 4  + progress
         if self.score - prev_score == 50:
-            reward += 5 + progress
-        if self.score >= 200:
+            reward += 6 + progress
+            print("power up")
+        if self.score - prev_score >= 200:
             reward += 3
         if hit_ghost:
             reward -= 10
         if action == REVERSED[self.last_action]:
             reward -= 2
         if info.invalid_move and invalid_mode:
-            reward -= 1
-        # if self.last_state.food_distance > info.food_distance and info.food_distance != 1:
-        #     print("moved away from food")
-        #     reward -= 1
-        reward -= 1
+            reward -= 2
+        if not info.food_distance == 1 and info.food_distance != 1:
+            reward -= 1           
+            print(reward)
+
+        if reward > 5:
+            print(reward)
         return reward
     def write_matrix(self, matrix):
         with open("outfile.txt", "wb") as f:
@@ -314,7 +317,8 @@ class PacmanAgent:
         random_action = random.choice([0, 1, 2, 3])
         obs, self.score, done, info = self.game.step(random_action)
         # state = self.process_state(obs)
-        state = torch.tensor(info.state).float().to(device).unsqueeze(0)
+        tensor = [torch.from_numpy(arr).float().to(device) for arr in info.state]
+        state = torch.stack(tensor, dim=0).unsqueeze(0)
         # for i in range(6):
         #     obs, self.score, done, info = self.game.step(random_action)
         #     self.buffer.append(info.frame)
@@ -323,6 +327,7 @@ class PacmanAgent:
         lives = 3
         reward_total = 0
         while True:
+            prev = info.state
             action = self.act(state)
             action_t = action.item()
             for i in range(3):
@@ -330,6 +335,7 @@ class PacmanAgent:
                     obs, self.score, done, info = self.game.step(action_t)
                     if lives != info.lives:
                         break
+            
             #self.buffer.append(info.frame)
             hit_ghost = False
             if lives != info.lives:
@@ -337,9 +343,10 @@ class PacmanAgent:
                 hit_ghost = True
                 lives -= 1
                 if not done:
-                    for i in range(8):
+                    for i in range(3):
                         _, _, _, _ = self.game.step(action_t)
-            next_state = torch.tensor(info.state).float().to(device).unsqueeze(0)
+            tensor = [torch.from_numpy(arr).float().to(device) for arr in info.state]
+            next_state = torch.stack(tensor, dim=0).unsqueeze(0)
             #next_state = self.process_state(self.buffer)
 
             reward_ = self.get_reward(
@@ -425,7 +432,7 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    #agent.load_model(name="1000-297158", eval=False)
+    agent.load_model(name="300-79595", eval=False)
     while True:
         agent.train()
         #agent.test()
