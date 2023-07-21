@@ -248,9 +248,9 @@ class Powerdots(Dots):
         
     def update(self, dt):
         self.timer += dt
-        if self.timer >= self.flashTime:
-            self.visible = not self.visible
-            self.timer = 0
+        # if self.timer >= self.flashTime:
+        #     self.visible = not self.visible
+        #     self.timer = 0
             
 class PelletGroup(object):
     def __init__(self, pelletfile):
