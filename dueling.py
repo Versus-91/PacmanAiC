@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 import torch.optim as optim
 import torch
@@ -336,7 +337,7 @@ class PacmanAgent:
                 hit_ghost = True
                 lives -= 1
                 if not done:
-                    for i in range(2):
+                    for i in range(8):
                         _, _, _, _ = self.game.step(action_t)
             next_state = torch.tensor(info.state).float().to(device).unsqueeze(0)
             #next_state = self.process_state(self.buffer)
@@ -370,6 +371,7 @@ class PacmanAgent:
                 self.rewards.append(self.score)
                 self.plot_rewards(items= self.rewards, avg=50)
                 #self.plot_rewards(items = self.losses,label="losses",name="losses.png", avg=50)
+                time.sleep(1)
                 self.game.restart()
                 torch.cuda.empty_cache()
                 break
