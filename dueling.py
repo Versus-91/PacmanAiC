@@ -271,10 +271,8 @@ class PacmanAgent:
             path = os.path.join(os.getcwd() + "\\results", f"optimizer-{name}.pt")       
             self.optimizer.load_state_dict(torch.load(path))            
             name_parts = name.split("-")
-            # self.episode = int(name_parts[0])
-            self.episode = 0
-            # self.steps = int(name_parts[1])
-            self.steps = 0
+            self.episode = int(name_parts[0])
+            self.steps = int(name_parts[1])
             self.target.train()
             self.policy.train()
     def check_cells(self,info,action):
