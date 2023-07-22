@@ -172,6 +172,9 @@ class GameController(object):
         self.nodes.denyAccessList(15, 14, up, self.ghosts)
         self.nodes.denyAccessList(12, 26, up, self.ghosts)
         self.nodes.denyAccessList(15, 26, up, self.ghosts)
+        self.ghosts.inky.startNode.denyAccess(right, self.ghosts.inky)
+        self.ghosts.clyde.startNode.denyAccess(left, self.ghosts.clyde)
+        self.ghosts.pinky.startNode.denyAccess(right, self.ghosts.pinky)
         #self.draw_misc()
         
     def updateScore(self, points):
@@ -221,7 +224,7 @@ class GameController(object):
         pacman_x = int(round(self.pacman.position.x / 16))
         pacman_y = int(round(self.pacman.position.y / 16))
         self.state[pacman_y][pacman_x] = 5
-        assert self.state[y][x] != 1
+        #assert self.state[y][x] != 1
         for ghost in enumerate(self.ghosts):
             x = int(round(ghost[1].position.x / 16))
             y = int(round(ghost[1].position.y / 16))
@@ -327,24 +330,41 @@ class GameController(object):
             info.ghost_distance = minDistance(info.frame,5,-6)
             info.scared_ghost_distance = minDistance(info.frame,5,6)
         return ([], self.score, done, info)
-    def eatDots(self):
-        dot = self.pacman.eatDots(self.pellets.pelletList)
-        if dot:
-            self.eatenPellets.append(dot)
-            self.pellets.numEaten += 1
-            self.updateScore(dot.points)
-            self.pellets.pelletList.remove(dot)
-            #print("remain dots",len(self.pellets.pelletList))
-            if len(self.pellets.pelletList) < 15:
-                self.ghosts.pinky.gets_angry(self.counter)
-            if dot.name == powerdot:
-                self.ghosts.startFreight()
+    # def eatDots(self):
+    #     dot = self.pacman.eatDots(self.pellets.pelletList)
+    #     if dot:
+    #         self.eatenPellets.append(dot)
+    #         self.pellets.numEaten += 1
+    #         self.updateScore(dot.points)
+    #         self.pellets.pelletList.remove(dot)
+    #         #print("remain dots",len(self.pellets.pelletList))
+    #         if len(self.pellets.pelletList) < 15:
+    #             self.ghosts.pinky.gets_angry(self.counter)
+    #         if dot.name == powerdot:
+    #             self.ghosts.startFreight()
                 
-            if self.pellets.isEmpty():
-                self.end()
-                self.won=True
-                #self.nextLevel()
-
+    #         if self.pellets.isEmpty():
+    #             self.end()
+    #             self.won=True
+    #             #self.nextLevel()
+    def eatDots(self):
+        pellet = self.pacman.eatDots(self.pellets.pelletList)
+        if pellet:
+            self.eatenPellets.append(pellet)
+            self.pellets.numEaten += 1
+            self.updateScore(pellet.points)
+            if self.pellets.numEaten == 30:
+                self.ghosts.inky.startNode.allowAccess(right, self.ghosts.inky)
+            if self.pellets.numEaten == 70:
+                self.ghosts.clyde.startNode.allowAccess(
+                    left, self.ghosts.clyde)
+            self.pellets.pelletList.remove(pellet)
+            if pellet.name == powerdot:
+                self.ghosts.startFreight()
+            # if self.pellets.isEmpty():
+            #     self.flashBG = True
+            #     self.hideEntities()
+            #     self.pause.setPause(pauseTime=3, func=self.nextLevel)
     def checkGhostEvents(self):
         for ghost in self.ghosts:                        
             if self.pacman.collideGhost(ghost):
