@@ -232,7 +232,7 @@ class PacmanAgent:
         # state = torch.tensor(obs).float().to(device)
         for i in range(6):
             obs, self.score, done, info = self.game.step(random_action)
-            self.buffer.append(obs)
+            self.buffer.append(info.frame)
         state = self.process_state(self.buffer)
         last_score = 0
         lives = 3
@@ -338,7 +338,7 @@ class PacmanAgent:
 
 if __name__ == "__main__":
     agent = PacmanAgent()
-    agent.load_model(name="800-389927", eval=False)
+    #agent.load_model(name="800-389927", eval=False)
 
     agent.rewards = []
     while True:
