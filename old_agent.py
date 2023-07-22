@@ -22,7 +22,7 @@ BATCH_SIZE = 128
 SAVE_EPISODE_FREQ = 100
 GAMMA = 0.99
 MOMENTUM = 0.95
-sync_every = 100
+sync_every = 500
 Experience = namedtuple(
     "Experience", field_names=["state", "action", "reward", "done", "new_state"]
 )
@@ -318,8 +318,7 @@ class PacmanAgent:
             )
             state = next_state
             self.learn()
-            if not info.invalid_move:
-                self.last_action = action_t
+            self.last_action = action_t
             if self.steps % 100000 == 0:
                 self.scheduler.step()
             if done:
