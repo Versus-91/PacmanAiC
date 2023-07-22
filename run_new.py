@@ -154,7 +154,7 @@ class GameController(object):
         self.pellets = PelletGroup(self.level_map)
         self.pacman = mypacman(self.nodes.getNodeFromTiles(15, 26))
         self.ghosts = GhostGroup(self.nodes.getStartTempNode(), self.pacman )   
-        self.ghosts.blinky.setStartNode(self.nodes.getNodeFromTiles(1, 4))
+        self.ghosts.blinky.setStartNode(self.nodes.getNodeFromTiles(2+11.5, 0 + 14))
         self.ghosts.pinky.setStartNode(self.nodes.getNodeFromTiles(2+11.5, 3+14))
         self.ghosts.inky.setStartNode(self.nodes.getNodeFromTiles(0+11.5, 3+14))
         self.ghosts.clyde.setStartNode(self.nodes.getNodeFromTiles(4+11.5, 3+14))
