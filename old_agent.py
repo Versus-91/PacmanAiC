@@ -124,6 +124,9 @@ class PacmanAgent:
             reward -= 15
         if hit_ghost:
             reward -= 30
+        if action == REVERSED[self.last_action] and hit_ghost:
+            print("revered hit ghost")
+            reward -= 15
         reward += time_penalty
         reward += movement_penalty
         index = np.where(info.frame == 5)
@@ -237,6 +240,13 @@ class PacmanAgent:
                     f"target-model-{self.episode}-{self.steps}.pt",
                 ),
             )
+            torch.save(
+                self.optimizer.state_dict(),
+                os.path.join(
+                    os.getcwd() + "\\results",
+                    f"optimizer-{self.episode}-{self.steps}.pt",
+                ),
+            )
 
     def load_model(self, name, eval=False):
         path = os.path.join(os.getcwd() + "\\results", f"target-model-{name}.pt")
@@ -308,7 +318,8 @@ class PacmanAgent:
             )
             state = next_state
             self.learn()
-            self.last_action = action_t
+            if not info.invalid_move:
+                self.last_action = action_t
             if self.steps % 100000 == 0:
                 self.scheduler.step()
             if done:
