@@ -247,7 +247,7 @@ class PacmanAgent:
                         break
                 else:
                     break
-            self.buffer.append(obs)
+            self.buffer.append(info.frame)
             hit_ghost = False
             if lives != info.lives:
                 # self.write_matrix(self.buffer)
