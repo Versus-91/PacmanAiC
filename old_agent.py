@@ -67,6 +67,36 @@ class PacmanAgent:
         self.optimizer = optim.Adam(self.policy.parameters(), lr=self.lr)
         self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=0.8)
         self.losses = []
+    def invalid_in_maze(self,info,action):
+        row_indices, col_indices = np.where(info.frame == 5)
+        invalid_in_maze = False
+        if row_indices.size > 0:
+            x = row_indices[0]
+            y = col_indices[0]
+            try:
+                upper_cell = info.frame[x - 1][y]
+                lower_cell = info.frame[x + 1][y]
+                right_cell = info.frame[x][y + 1]
+                left_cell = info.frame[x][y - 1]
+            except IndexError:
+                upper_cell = 0
+                lower_cell = 0
+                right_cell = 0
+                left_cell = 0
+            if info.invalid_move:
+                if action == 0:
+                    if upper_cell == 1:
+                        invalid_in_maze=True
+                elif action == 1:
+                    if lower_cell == 1:
+                        invalid_in_maze=True
+                elif action == 2:
+                    if left_cell == 1:
+                        invalid_in_maze=True
+                elif action == 3:
+                    if right_cell == 1:
+                        invalid_in_maze=True
+        return invalid_in_maze
     def calculate_reward(
         self, done, lives, hit_ghost, action, prev_score, info: GameState, state
     ):
@@ -90,8 +120,8 @@ class PacmanAgent:
             reward += progress
         if self.score - prev_score >= 200:
             reward += 20 * ((self.score - prev_score) / 200)
-        if info.invalid_move:
-            reward -= 1
+        if info.invalid_move and self.invalid_in_maze(info,action):
+            reward -= 10
         if hit_ghost:
             reward -= 30
         reward += time_penalty
@@ -105,7 +135,7 @@ class PacmanAgent:
             n3 = info.frame [x][y + 1]
             n4 = info.frame [x][y - 1]
             if -6 and not hit_ghost in (n1, n2, n3, n4):
-                reward -= 30
+                reward -= 15
             elif 3 in (n1, n2, n3, n4):
                 reward += 1 + progress
             elif 4 in (n1, n2, n3, n4):
