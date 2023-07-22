@@ -96,14 +96,14 @@ class PacmanAgent:
             reward -= 30
         reward += time_penalty
         reward += movement_penalty
-        index = np.where(state == 5)
+        index = np.where(info.frame == 5)
         if len(index[0]) != 0:
             x = index[0][0]
             y = index[1][0]
-            n1 = state[x + 1][y]
-            n2 = state[x - 1][y]
-            n3 = state[x][y + 1]
-            n4 = state[x][y - 1]
+            n1 = info.frame [x + 1][y]
+            n2 = info.frame [x - 1][y]
+            n3 = info.frame [x][y + 1]
+            n4 = info.frame [x][y - 1]
             if -6 in (n1, n2, n3, n4):
                 reward -= 30
             elif 3 in (n1, n2, n3, n4):
