@@ -104,15 +104,13 @@ class PacmanAgent:
             n2 = info.frame [x - 1][y]
             n3 = info.frame [x][y + 1]
             n4 = info.frame [x][y - 1]
-            if -6 in (n1, n2, n3, n4):
+            if -6 and not hit_ghost in (n1, n2, n3, n4):
                 reward -= 30
             elif 3 in (n1, n2, n3, n4):
                 reward += 1 + progress
             elif 4 in (n1, n2, n3, n4):
                 reward += 3 + progress
         reward = round(reward, 2)
-        if reward != -0.11:
-            print(reward)
         return reward
 
     def write_matrix(self, matrix):
