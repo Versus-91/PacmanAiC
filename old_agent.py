@@ -121,7 +121,7 @@ class PacmanAgent:
         if self.score - prev_score >= 200:
             reward += 20 * ((self.score - prev_score) / 200)
         if info.invalid_move and self.invalid_in_maze(info,action):
-            reward -= 10
+            reward -= 15
         if hit_ghost:
             reward -= 30
         reward += time_penalty
@@ -130,10 +130,16 @@ class PacmanAgent:
         if len(index[0]) != 0:
             x = index[0][0]
             y = index[1][0]
-            n1 = info.frame [x + 1][y]
-            n2 = info.frame [x - 1][y]
-            n3 = info.frame [x][y + 1]
-            n4 = info.frame [x][y - 1]
+            try:
+                n1 = info.frame [x + 1][y]
+                n2 = info.frame [x - 1][y]
+                n3 = info.frame [x][y + 1]
+                n4 = info.frame [x][y - 1]
+            except IndexError:
+                n1 = 0
+                n2 = 0
+                n3 = 0
+                n4 = 0
             if -6 and not hit_ghost in (n1, n2, n3, n4):
                 reward -= 15
             elif 3 in (n1, n2, n3, n4):
